@@ -103,11 +103,11 @@ func (k *kiteClient) Login() {
 		log.Print(err)
 	}
 	//Read the response
-	body, err := (ioutil.ReadAll(resp.Body))
+	message, err := (ioutil.ReadAll(resp.Body))
 	if err != nil {
 		log.Print(err)
 	}
-	message := []byte(body)
+	//message := []byte(body)
 	//parse accesstoken and store
 	accToken, _, _, err := jsonparser.Get(message, "data", "access_token")
 	if err != nil {
@@ -154,16 +154,20 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 	if err != nil {
 		log.Print(err)
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	message, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Print(err)
 	}
-	// status, _, _, err := jsonparser.Get(body, "status")
-	// if err != nil {
-	// 	log.Print(err)
-	// }
+	data, _, _, err := jsonparser.Get(message, "data", "candles")
+	if err != nil {
+		log.Print(err)
+	}
+	err = ioutil.WriteFile("data.txt", data, 0644)
+	if err != nil {
+		log.Print(err)
+	}
 
 	//message := []byte(body)
-	fmt.Println(string(body))
+	//	fmt.Println(string(body))
 
 }
