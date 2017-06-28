@@ -2,12 +2,15 @@ package main
 
 import (
 	"fmt"
+	// "io/ioutil"
+	// "kite-go/helper"
 	"kite-go/kiteGo"
+	// "strings"
 )
 
 const (
 	API_KEY     string = "l3zela16irfa6rax"
-	REQ_TOKEN   string = "m6u0vbmh61hgqj9zo43ptsfzvkrqmagq" //Constant for this session
+	REQ_TOKEN   string = "vwa72tm8x4z4pb26fsrusxjrdg5wn4v4" //Constant for this session
 	API_SECRET  string = "qefc9t3ovposnzvvy94k3sckna7vwuxs"
 	MINUTE      string = "minute"
 	THREE_MIN   string = "3minute"
@@ -26,7 +29,7 @@ func main() {
 	fmt.Println("Starting Client")
 	client := kiteGo.KiteClient(API_KEY, REQ_TOKEN, API_SECRET)
 	client.Login()
-	client.GetHistorical(MINUTE, "5633", "2017-06-01", "2017-06-05")
+	client.GetHistorical(THREE_MIN, "5633", "2015-06-01", "2017-06-05", "data.txt")
 	var input string
 	fmt.Println("Enter to end...")
 	fmt.Scanln(&input)

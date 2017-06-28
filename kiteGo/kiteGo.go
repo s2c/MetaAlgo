@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"github.com/buger/jsonparser"
 	"io/ioutil"
-	"log"
+	"kite-go/helper"
+	// "log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -94,36 +95,28 @@ func (k *kiteClient) Login() {
 	form.Add("checksum", checksum)
 	//Create the request
 	req, err := http.NewRequest(POST, API_ROOT+TOKEN_URL, strings.NewReader(form.Encode()))
-	if err != nil {
-		log.Print(err)
-	}
+	helper.CheckError(err)
+
 	//Do the request
 	resp, err := hc.Do(req)
-	if err != nil {
-		log.Print(err)
-	}
+	helper.CheckError(err, resp)
+
 	//Read the response
 	message, err := (ioutil.ReadAll(resp.Body))
-	if err != nil {
-		log.Print(err)
-	}
-	//message := []byte(body)
+	helper.CheckError(err)
+
 	//parse accesstoken and store
 	accToken, _, _, err := jsonparser.Get(message, "data", "access_token")
-	if err != nil {
-		log.Print(err)
-	}
+	helper.CheckError(err, resp)
 	k.SetAccessToken(string(accToken))
 	if k.Client_ACC_TOKEN != "" {
-		fmt.Println(k.Client_ACC_TOKEN)
+
 		fmt.Println("Access Key set")
 	}
 
 	//parse publictoken and store
 	pubToken, _, _, err := jsonparser.Get(message, "data", "public_token")
-	if err != nil {
-		log.Print(err)
-	}
+	helper.CheckError(err, resp)
 	k.SetPublicToken(string(pubToken))
 	if k.Client_PUB_TOKEN != "" {
 		fmt.Println("Public Key set")
@@ -132,42 +125,43 @@ func (k *kiteClient) Login() {
 }
 
 //dates of format yyyy-mm-dd
-func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from string, to string) {
+func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from string, to string, filename string) {
+	//Create HTTP client
 	hc := httpClient(30)
-
+	//Create basic request
 	req, err := http.NewRequest(GET, API_ROOT+HISTORICAL+exchangeToken+"/"+duration, nil)
-	if err != nil {
-		log.Print(err)
-	}
+	helper.CheckError(err)
+	//Add parameters to request
 	form := req.URL.Query()
 	form.Add("api_key", k.Client_API_KEY)
 	form.Add("access_token", k.Client_ACC_TOKEN)
 	form.Add("from", from)
 	form.Add("to", to)
 	req.URL.RawQuery = form.Encode()
-
+	//Create new request with parameters
 	req, err = http.NewRequest(GET, req.URL.String(), nil)
-	if err != nil {
-		log.Print(err)
-	}
+	helper.CheckError(err)
+	//Get the historical data
 	resp, err := hc.Do(req)
-	if err != nil {
-		log.Print(err)
-	}
-	message, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Print(err)
-	}
-	data, _, _, err := jsonparser.Get(message, "data", "candles")
-	if err != nil {
-		log.Print(err)
-	}
-	err = ioutil.WriteFile("data.txt", data, 0644)
-	if err != nil {
-		log.Print(err)
-	}
+	helper.CheckError(err)
 
-	//message := []byte(body)
-	//	fmt.Println(string(body))
+	//Read it
+	message, err := ioutil.ReadAll(resp.Body)
+	helper.CheckError(err)
+	//	fmt.Println(string(message))
+	//Parse to get Candles
+	data, _, _, err := jsonparser.Get(message, "data", "candles")
+	helper.CheckError(err, resp)
+
+	//Format correctly
+	dat := strings.Replace(string(data), "[", "", -1)
+	dat = strings.Replace(dat, "]", "", -1)
+	dat = strings.Replace(dat, "\"", "", -1)
+
+	data = helper.ReplaceNth([]byte(dat), ',', '\n', 6)
+
+	//Store
+	err = ioutil.WriteFile(filename, data, 0644)
+	helper.CheckError(err)
 
 }
