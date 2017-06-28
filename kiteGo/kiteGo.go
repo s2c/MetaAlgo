@@ -107,7 +107,7 @@ func (k *kiteClient) Login() {
 
 	//parse accesstoken and store
 	accToken, _, _, err := jsonparser.Get(message, "data", "access_token")
-	helper.CheckError(err, resp)
+	helper.CheckError(err)
 	k.SetAccessToken(string(accToken))
 	if k.Client_ACC_TOKEN != "" {
 
@@ -116,7 +116,7 @@ func (k *kiteClient) Login() {
 
 	//parse publictoken and store
 	pubToken, _, _, err := jsonparser.Get(message, "data", "public_token")
-	helper.CheckError(err, resp)
+	helper.CheckError(err)
 	k.SetPublicToken(string(pubToken))
 	if k.Client_PUB_TOKEN != "" {
 		fmt.Println("Public Key set")
@@ -143,7 +143,7 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 	helper.CheckError(err)
 	//Get the historical data
 	resp, err := hc.Do(req)
-	helper.CheckError(err)
+	helper.CheckError(err, resp)
 
 	//Read it
 	message, err := ioutil.ReadAll(resp.Body)
@@ -151,7 +151,7 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 	//	fmt.Println(string(message))
 	//Parse to get Candles
 	data, _, _, err := jsonparser.Get(message, "data", "candles")
-	helper.CheckError(err, resp)
+	helper.CheckError(err)
 
 	//Format correctly
 	dat := strings.Replace(string(data), "[", "", -1)

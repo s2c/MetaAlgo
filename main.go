@@ -10,7 +10,7 @@ import (
 
 const (
 	API_KEY     string = "l3zela16irfa6rax"
-	REQ_TOKEN   string = "vwa72tm8x4z4pb26fsrusxjrdg5wn4v4" //Constant for this session
+	REQ_TOKEN   string = "4lsdlecfe808xcx0yf2h5u9qbrqts2zh" //Constant for this session
 	API_SECRET  string = "qefc9t3ovposnzvvy94k3sckna7vwuxs"
 	MINUTE      string = "minute"
 	THREE_MIN   string = "3minute"

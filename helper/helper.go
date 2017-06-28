@@ -2,20 +2,13 @@ package helper
 
 import (
 	"fmt"
-	"github.com/buger/jsonparser"
 	"io/ioutil"
 	"log"
 	"net/http"
 )
 
 func CheckError(e error, resp ...*http.Response) {
-	if e == jsonparser.KeyPathNotFoundError {
-		fmt.Println(resp[0].Status)
-		fmt.Print("Body Dump: ")
-		CheckHttpBody(resp[0])
-		fmt.Print("Body Dump end \n")
-		log.Fatal("error!")
-	} else if resp != nil && resp[0].StatusCode != 200 {
+	if resp != nil && resp[0].StatusCode != 200 {
 		CheckHttpBody(resp[0])
 		log.Fatal("HTTP ERROR")
 
