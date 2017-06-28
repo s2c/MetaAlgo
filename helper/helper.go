@@ -10,7 +10,7 @@ import (
 func CheckError(e error, resp ...*http.Response) {
 	if resp != nil && resp[0].StatusCode != 200 {
 		CheckHttpBody(resp[0])
-		log.Fatal("HTTP ERROR")
+		log.Panic("HTTP ERROR")
 
 	} else if e != nil {
 		log.Panic("Unknown Error")
