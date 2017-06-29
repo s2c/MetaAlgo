@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func CheckError(e error, resp ...*http.Response) {
@@ -21,6 +22,14 @@ func CheckHttpBody(resp *http.Response) {
 	data, _ := ioutil.ReadAll(resp.Body)
 	//CheckError(err)
 	fmt.Println(string(data))
+}
+
+func FormatData(data string) []byte {
+	dat := strings.Replace(string(data), "[", "", -1)
+	dat = strings.Replace(dat, "]", "", -1)
+	dat = strings.Replace(dat, "\"", "", -1)
+	return ReplaceNth([]byte(dat), ',', '\n', 6)
+
 }
 
 func ReplaceNth(dat []byte, oldChar byte, newChar byte, nth int) []byte {
