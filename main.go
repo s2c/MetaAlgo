@@ -10,7 +10,7 @@ import (
 
 const (
 	API_KEY     string = "l3zela16irfa6rax"
-	REQ_TOKEN   string = "nn5hpal5dmku2ygqm2ji2igofgbyb83d" //Constant for this session
+	REQ_TOKEN   string = "fj962rwmsd7lxmsm2xzk9ogw4qkwf75i" //Constant for this session
 	API_SECRET  string = "qefc9t3ovposnzvvy94k3sckna7vwuxs"
 	MINUTE      string = "minute"
 	THREE_MIN   string = "3minute"
@@ -29,8 +29,8 @@ func main() {
 	fmt.Println("Starting Client")
 	client := kiteGo.KiteClient(API_KEY, REQ_TOKEN, API_SECRET)
 	client.Login()
-	go client.GetHistorical(THREE_MIN, "5351937", "2017-04-01", "2017-06-05", "data.txt")
-	go client.GetHistorical(THREE_MIN, "3329", "2017-04-01", "2017-06-05", "Newdata.txt")
+	go client.GetHistorical(MINUTE, "259593", "2015-06-01", "2017-06-01", "InverseNifty50.csv")
+	go client.GetHistorical(MINUTE, "256265", "2015-06-01", "2017-06-01", "Nifty50.txt")
 	var input string
 	fmt.Println("Enter to end...")
 	fmt.Scanln(&input)
