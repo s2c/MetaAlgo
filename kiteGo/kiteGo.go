@@ -52,13 +52,6 @@ type kiteClient struct {
 	Client_PUB_TOKEN  string
 }
 
-//wrapper to ensure there is a default 10 second timeout
-func httpClient(timeout time.Duration) *http.Client {
-	client := &http.Client{}
-	client.Timeout = timeout * time.Second
-	return client
-}
-
 //Create a new Kite Client
 func KiteClient(key string, req string, secret string) *kiteClient {
 
@@ -90,7 +83,7 @@ func (k *kiteClient) Login() {
 	hasher.Write([]byte(checksum))
 	checksum = hex.EncodeToString(hasher.Sum(nil))
 	//Create Http client, add the required fields
-	hc := httpClient(DEFAULT_TIMEOUT)
+	hc := helper.HttpClient(DEFAULT_TIMEOUT)
 	form := url.Values{}
 	form.Add("api_key", k.Client_API_KEY)
 	form.Add("request_token", k.Client_REQ_TOKEN)
@@ -128,9 +121,11 @@ func (k *kiteClient) Login() {
 
 //dates of format yyyy-mm-dd
 //concurrent safe as long as a million copies are not called, I THINK
-func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from string, to string, filename string) {
+func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from string, to string, filename string, ch chan bool) {
+	ch <- true
 	//Create HTTP client
-	hc := httpClient(30)
+	fmt.Printf("Starting to acquire %s from %s to %s \n", filename[0:len(filename)-4], from, to)
+	hc := helper.HttpClient(30)
 	//Create basic request
 	//If duration is day then we can just grab the entire interval at once
 	if duration == DAY {
@@ -163,10 +158,10 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 		data = helper.FormatData(string(data))
 
 		//Store
-		err = ioutil.WriteFile(filename, data, 0644)
+		err = ioutil.WriteFile("data/"+filename, data, 0644)
 		helper.CheckError(err)
 	} else { //if Duration is not day then we need to split it into multiple days
-		dataFile, _ := os.OpenFile(filename,
+		dataFile, _ := os.OpenFile("data/"+filename,
 			os.O_WRONLY|os.O_CREATE, 0666)
 		curr, _ := time.Parse(DEFAULT_DATE_LAYOUT, from)
 		final, _ := time.Parse(DEFAULT_DATE_LAYOUT, to)
@@ -182,7 +177,7 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 			form.Add("from", curr.Format(DEFAULT_DATE_LAYOUT))
 			form.Add("to", (curr.Add(29 * 24 * time.Hour)).Format(DEFAULT_DATE_LAYOUT))
 			req.URL.RawQuery = form.Encode()
-			fmt.Println(req.URL.String())
+			//fmt.Println(req.URL.String())
 			req, err = http.NewRequest(GET, req.URL.String(), nil)
 			helper.CheckError(err)
 			//Get the historical data
@@ -199,9 +194,10 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 			_, err = dataFile.Write(data)
 			_, err = dataFile.Write([]byte("\n"))
 			helper.CheckError(err)
-			fmt.Println("Looped")
+			//fmt.Println("Looped")
 
 		}
+		//TODO: Fix this so there is only the for loop instead of doing it twice
 		//repeat for last remaining bit
 		req, err := http.NewRequest(GET, API_ROOT+HISTORICAL+exchangeToken+"/"+duration, nil)
 		helper.CheckError(err)
@@ -211,7 +207,7 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 		form.Add("from", curr.Format(DEFAULT_DATE_LAYOUT))
 		form.Add("to", final.Format(DEFAULT_DATE_LAYOUT))
 		req.URL.RawQuery = form.Encode()
-		fmt.Println(req.URL.String())
+		//	fmt.Println(req.URL.String())
 		req, err = http.NewRequest(GET, req.URL.String(), nil)
 		helper.CheckError(err)
 		//Get the historical data
@@ -227,7 +223,8 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 		_, err = dataFile.Write(data)
 		helper.CheckError(err)
 		dataFile.Close()
-		//fmt.Println("Finished with ", exchangeToken)
+		fmt.Printf("FINISHED acquring %s from %s to %s \n", filename[0:len(filename)-4], from, to)
+		<-ch
 
 	}
 

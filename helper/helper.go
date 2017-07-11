@@ -6,15 +6,16 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func CheckError(e error, resp ...*http.Response) {
 	if resp != nil && resp[0].StatusCode != 200 {
 		CheckHttpBody(resp[0])
-		log.Panic("HTTP ERROR")
+		log.Printf("HTTP ERROR")
 
 	} else if e != nil {
-		log.Panic("Unknown Error")
+		log.Printf("Unknown Error")
 	}
 }
 
@@ -32,6 +33,13 @@ func FormatData(data string) []byte {
 
 }
 
+//TODO FIX THIS
+// func CheckPoolDone(ch chan<- bool) {
+// 	for i := 0; i < cap(ch); i++ {
+// 		ch <- true
+// 	}
+// }
+
 func ReplaceNth(dat []byte, oldChar byte, newChar byte, nth int) []byte {
 	count := 0
 	for i := 0; i < len(dat); i++ {
@@ -44,4 +52,11 @@ func ReplaceNth(dat []byte, oldChar byte, newChar byte, nth int) []byte {
 		}
 	}
 	return dat
+}
+
+//wrapper to ensure there is a default 10 second timeout
+func HttpClient(timeout time.Duration) *http.Client {
+	client := &http.Client{}
+	client.Timeout = timeout * time.Second
+	return client
 }
