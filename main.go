@@ -13,7 +13,7 @@ import (
 
 const (
 	API_KEY      string = "l3zela16irfa6rax"
-	REQ_TOKEN    string = "hg9qdg22swgle73kvi8dlxty6mac01o4" //Constant for this session
+	REQ_TOKEN    string = "yzs38zhaaz64n0fmd4is6kuepx3q0ss5" //Constant for this session
 	API_SECRET   string = "qefc9t3ovposnzvvy94k3sckna7vwuxs"
 	MINUTE       string = "minute"
 	THREE_MIN    string = "3minute"
@@ -44,8 +44,6 @@ func main() {
 	go client.GetHistorical(MINUTE, "136385796", "2017-01-01", "2017-06-01", "Voltamp.csv", HistPool)
 	go client.GetHistorical(MINUTE, "4296449", "2017-01-01", "2017-06-01", "GETD.csv", HistPool)
 	go client.GetHistorical(MINUTE, "3884545", "2017-01-01", "2017-06-01", "TRIL.csv", HistPool)
-
-	// helper.CheckPoolDone(HistPool)
 
 	fmt.Println("DONE WITH ALL TASKS")
 	var input string
