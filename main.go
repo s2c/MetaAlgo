@@ -13,7 +13,7 @@ import (
 
 const (
 	API_KEY      string = "l3zela16irfa6rax"
-	REQ_TOKEN    string = "do6vel2imibf35jiit735mr4nm9reon7" //Constant for this session
+	REQ_TOKEN    string = "4be382t2y1czjvpwia91pomqenxx1d6j" //Constant for this session
 	API_SECRET   string = "qefc9t3ovposnzvvy94k3sckna7vwuxs"
 	MINUTE       string = "minute"
 	THREE_MIN    string = "3minute"
@@ -27,7 +27,7 @@ const (
 )
 
 func main() {
-	os.RemoveAll("data/")
+	os.RemoveAll("data/.csv")
 	os.MkdirAll("data/", 0777)
 	// REGULATORY REQUIREMENT
 	// Go to https://kite.trade/connect/login?api_key=l3zela16irfa6rax to get request token for the day
