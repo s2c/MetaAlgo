@@ -41,6 +41,7 @@ const (
 	DEFAULT_TIMEOUT         time.Duration = 7
 	DEFAULT_FULLTIME_LAYOUT string        = "2006-01-02T15:04:05-0700"
 	DEFAULT_DATE_LAYOUT     string        = "2006-01-02"
+	ACC_TOKEN_FILE          string        = "ACCTOKEN.txt"
 )
 
 //User Tokens
@@ -53,18 +54,61 @@ type kiteClient struct {
 }
 
 //Create a new Kite Client
-func KiteClient(key string, req string, secret string) *kiteClient {
+func KiteClient(configFile string, ReqToken ...string) *kiteClient {
 
 	k := &kiteClient{}
 
-	k.Client_API_KEY = key
-	k.Client_REQ_TOKEN = req
-	k.Client_API_SECRET = secret
-	k.Client_ACC_TOKEN = ""
+	//open file
+	fi, err := os.Open(configFile)
+	if err != nil {
+		helper.CheckError(err)
+	}
+	/*
+
+
+		ADD READING JSON HERE
+
+
+	*/
+	// Replace from JSON
+	fi.Close()
+	k.Client_API_SECRET = "secret"
+	k.Client_API_KEY = "key"
+	k.Client_REQ_TOKEN = ""
+
 	k.Client_PUB_TOKEN = ""
+
+	// Check if AccessToken is still valid
+	validAcc := helper.AccessTokenValidity(ACC_TOKEN_FILE)
+	if validAcc {
+		content, err := ioutil.ReadFile(ACC_TOKEN_FILE)
+		if err != nil {
+			k.Client_ACC_TOKEN = string(content) // If yes then just read and set Access Token
+		}
+	} else {
+		k.Login()
+		// if error, then log and exit
+		// Write k.Client_ACC_TOKEN to file if not valid then we need to login and generate the Access Token
+
+	}
 
 	return k
 }
+
+// Create a new Kite Client
+// Deprecated
+// func KiteClient(key string, req string, secret string) *kiteClient {
+
+// 	k := &kiteClient{}
+
+// 	k.Client_API_KEY = key
+// 	k.Client_REQ_TOKEN = req
+// 	k.Client_API_SECRET = secret
+// 	k.Client_ACC_TOKEN = ""
+// 	k.Client_PUB_TOKEN = ""
+
+// 	return k
+// }
 
 //Set the access token
 func (k *kiteClient) SetAccessToken(acc_token string) {

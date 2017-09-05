@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -15,7 +16,7 @@ func CheckError(e error, resp ...*http.Response) {
 		log.Printf("HTTP ERROR")
 
 	} else if e != nil {
-		log.Printf("Unknown Error")
+		log.Fatal("Unknown Error")
 	}
 }
 
@@ -33,12 +34,18 @@ func FormatData(data string) []byte {
 
 }
 
-//TODO FIX THIS
-// func CheckPoolDone(ch chan<- bool) {
-// 	for i := 0; i < cap(ch); i++ {
-// 		ch <- true
-// 	}
-// }
+// Returns true or false if a file that contains the access token CAN STILL BE VALID
+// DOES NOT CHECK THE ACTUAL TOKEN, JUST THE FILE TO SEE IF IT CAN BE VALID
+func AccessTokenValidity(AccesTokenFile string) bool {
+	fi, err := os.Stat(AccesTokenFile)
+	if os.IsNotExist(err) {
+		return false
+	} else if (time.Now().Sub(fi.ModTime())) > time.Hour*24 {
+		return false
+	} else {
+		return true
+	}
+}
 
 func ReplaceNth(dat []byte, oldChar byte, newChar byte, nth int) []byte {
 	count := 0

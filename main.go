@@ -33,7 +33,7 @@ func main() {
 	// Go to https://kite.trade/connect/login?api_key=l3zela16irfa6rax to get request token for the day
 	// curl https://api.kite.trade/instruments to retreive master list
 	fmt.Println("Starting Client")
-	client := kiteGo.KiteClient(API_KEY, REQ_TOKEN, API_SECRET)
+	client := kiteGo.KiteClient("config.json")
 	client.Login()
 
 	HistPool := make(chan bool, MAX_ROUTINES)
