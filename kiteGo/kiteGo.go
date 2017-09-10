@@ -22,6 +22,9 @@ const (
 	ORDERS                  string        = "/orders"
 	TRADES                  string        = "/trades"
 	HISTORICAL              string        = "/instruments/historical/"
+	API_FIELD               string        = "API_KEY"
+	SECRET_FIELD            string        = "API_SECRET"
+	REQ_TOK_FIELD           string        = "REQ_TOKEN"
 	MINUTE                  string        = "minute"
 	THREE_MIN               string        = "3minute"
 	FIVE_MIN                string        = "5minute"
@@ -57,36 +60,31 @@ type kiteClient struct {
 func KiteClient(configFile string, ReqToken ...string) *kiteClient {
 
 	k := &kiteClient{}
+	k.Client_PUB_TOKEN = "" // Unset
 
-	//open file
-	fi, err := os.Open(configFile)
+	// jsonParser magic
+	data, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		helper.CheckError(err)
 	}
-	/*
 
+	k.Client_API_SECRET, _ = jsonparser.GetString(data, SECRET_FIELD)
+	k.Client_API_KEY, _ = jsonparser.GetString(data, API_FIELD)
+	k.Client_REQ_TOKEN, _ = jsonparser.GetString(data, REQ_TOK_FIELD)
 
-		ADD READING JSON HERE
-
-
-	*/
-	// Replace from JSON
-	fi.Close()
-	k.Client_API_SECRET = "secret"
-	k.Client_API_KEY = "key"
-	k.Client_REQ_TOKEN = ""
-
-	k.Client_PUB_TOKEN = ""
+	//FIle Read, now need to check if we still need to login today.
 
 	// Check if AccessToken is still valid
 	validAcc := helper.AccessTokenValidity(ACC_TOKEN_FILE)
 	if validAcc {
-		content, err := ioutil.ReadFile(ACC_TOKEN_FILE)
+		contByte, err := ioutil.ReadFile(ACC_TOKEN_FILE)
+		contString := string(contByte)
 		if err != nil {
-			k.Client_ACC_TOKEN = string(content) // If yes then just read and set Access Token
+			k.SetAccessToken(contString) // If yes then just read and set Access Token
 		}
 	} else {
 		k.Login()
+		ioutil.WriteFile(ACC_TOKEN_FILE, []byte(k.Client_ACC_TOKEN), 0644)
 		// if error, then log and exit
 		// Write k.Client_ACC_TOKEN to file if not valid then we need to login and generate the Access Token
 
@@ -94,21 +92,6 @@ func KiteClient(configFile string, ReqToken ...string) *kiteClient {
 
 	return k
 }
-
-// Create a new Kite Client
-// Deprecated
-// func KiteClient(key string, req string, secret string) *kiteClient {
-
-// 	k := &kiteClient{}
-
-// 	k.Client_API_KEY = key
-// 	k.Client_REQ_TOKEN = req
-// 	k.Client_API_SECRET = secret
-// 	k.Client_ACC_TOKEN = ""
-// 	k.Client_PUB_TOKEN = ""
-
-// 	return k
-// }
 
 //Set the access token
 func (k *kiteClient) SetAccessToken(acc_token string) {
@@ -167,6 +150,7 @@ func (k *kiteClient) Login() {
 //concurrent safe as long as a million copies are not called, I THINK
 func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from string, to string, filename string, ch chan bool) {
 	ch <- true
+	fmt.Println("WE HERE")
 	//Create HTTP client
 	fmt.Printf("Starting to acquire %s from %s to %s \n", filename[0:len(filename)-4], from, to)
 	hc := helper.HttpClient(30)
