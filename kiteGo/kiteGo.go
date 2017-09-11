@@ -78,12 +78,14 @@ func KiteClient(configFile string, ReqToken ...string) *kiteClient {
 	validAcc := helper.AccessTokenValidity(ACC_TOKEN_FILE)
 	if validAcc {
 		contByte, err := ioutil.ReadFile(ACC_TOKEN_FILE)
-		contString := string(contByte)
 		if err != nil {
-			k.SetAccessToken(contString) // If yes then just read and set Access Token
+			helper.CheckError(err)
 		}
+		contString := string(contByte)
+		k.SetAccessToken(contString) // If yes then just read and set Access Token
+
 	} else {
-		k.Login()
+		k.login()
 		ioutil.WriteFile(ACC_TOKEN_FILE, []byte(k.Client_ACC_TOKEN), 0644)
 		// if error, then log and exit
 		// Write k.Client_ACC_TOKEN to file if not valid then we need to login and generate the Access Token
@@ -103,7 +105,7 @@ func (k *kiteClient) SetPublicToken(pub_token string) {
 }
 
 //Login to retrieve access token. API_KEY,REQ_TOKEN, API_SECRET MUST BE SET
-func (k *kiteClient) Login() {
+func (k *kiteClient) login() {
 	//Compute Hash and store checksum
 	hasher := sha256.New()
 	checksum := k.Client_API_KEY + k.Client_REQ_TOKEN + k.Client_API_SECRET
@@ -150,7 +152,7 @@ func (k *kiteClient) Login() {
 //concurrent safe as long as a million copies are not called, I THINK
 func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from string, to string, filename string, ch chan bool) {
 	ch <- true
-	fmt.Println("WE HERE")
+	//fmt.Println("WE HERE")
 	//Create HTTP client
 	fmt.Printf("Starting to acquire %s from %s to %s \n", filename[0:len(filename)-4], from, to)
 	hc := helper.HttpClient(30)

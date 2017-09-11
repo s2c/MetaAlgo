@@ -40,7 +40,7 @@ func AccessTokenValidity(AccesTokenFile string) bool {
 	fi, err := os.Stat(AccesTokenFile)
 	if os.IsNotExist(err) {
 		return false
-	} else if (time.Now().Sub(fi.ModTime())) > time.Hour*24 {
+	} else if (time.Now().Sub(fi.ModTime())) > time.Hour*6 {
 		return false
 	} else {
 		return true

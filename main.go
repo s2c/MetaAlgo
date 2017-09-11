@@ -34,7 +34,6 @@ func main() {
 	// curl https://api.kite.trade/instruments to retreive master list
 	fmt.Println("Starting Client")
 	client := kiteGo.KiteClient("config.json")
-	//client.Login() //Login should be automatic now if client is created
 
 	HistPool := make(chan bool, MAX_ROUTINES)
 
