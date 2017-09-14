@@ -15,36 +15,46 @@ import (
 )
 
 const (
-	API_ROOT                string        = "https://api.kite.trade"
-	TOKEN_URL               string        = "/session/token"
-	PARAMETERS              string        = "/parameters"
-	USER_MARGINS            string        = "/user/margins/"
-	ORDERS                  string        = "/orders"
-	TRADES                  string        = "/trades"
-	HISTORICAL              string        = "/instruments/historical/"
-	API_FIELD               string        = "API_KEY"
-	SECRET_FIELD            string        = "API_SECRET"
-	REQ_TOK_FIELD           string        = "REQ_TOKEN"
-	MINUTE                  string        = "minute"
-	THREE_MIN               string        = "3minute"
-	FIVE_MIN                string        = "5minute"
-	TEN_MIN                 string        = "10minute"
-	FIFTEEN_MIN             string        = "15minute"
-	THIRTY_MIN              string        = "30minute"
-	SIXTY_MIN               string        = "60minute"
-	DAY                     string        = "day"
-	EX_CDS                  string        = "CDS"
-	EX_NFO                  string        = "NFO"
-	EX_BSE                  string        = "BSE"
-	EX_BFO                  string        = "BFO"
-	EX_NSE                  string        = "NSE"
-	EX_MCX                  string        = "MCX"
-	POST                    string        = "POST"
-	GET                     string        = "GET"
+	API_ROOT      string = "https://api.kite.trade"
+	TOKEN_URL     string = "/session/token"
+	PARAMETERS    string = "/parameters"
+	USER_MARGINS  string = "/user/margins/"
+	ORDERS        string = "/orders"
+	TRADES        string = "/trades"
+	HISTORICAL    string = "/instruments/historical/"
+	API_FIELD     string = "API_KEY"
+	SECRET_FIELD  string = "API_SECRET"
+	REQ_TOK_FIELD string = "REQ_TOKEN"
+	MINUTE        string = "minute"
+	THREE_MIN     string = "3minute"
+	FIVE_MIN      string = "5minute"
+	TEN_MIN       string = "10minute"
+	FIFTEEN_MIN   string = "15minute"
+	THIRTY_MIN    string = "30minute"
+	SIXTY_MIN     string = "60minute"
+	DAY           string = "day"
+	EX_CDS        string = "CDS"
+	EX_NFO        string = "NFO"
+	EX_BSE        string = "BSE"
+	EX_BFO        string = "BFO"
+	EX_NSE        string = "NSE"
+	EX_MCX        string = "MCX"
+	POST          string = "POST"
+	GET           string = "GET"
+	KITE_VERSION  string = "3"
+)
+const (
 	DEFAULT_TIMEOUT         time.Duration = 7
 	DEFAULT_FULLTIME_LAYOUT string        = "2006-01-02T15:04:05-0700"
 	DEFAULT_DATE_LAYOUT     string        = "2006-01-02"
 	ACC_TOKEN_FILE          string        = "ACCTOKEN.txt"
+)
+const (
+	OUT_OF_DATE_RANGE  int    = 1
+	UNKNOWN_HTTP_ERROR int    = 2
+	UNKNOWN_ERROR      int    = 9
+	ALL_GOOD           int    = 0
+	INP_EXC_ERR_MSG    string = "InputException"
 )
 
 //User Tokens
@@ -148,114 +158,160 @@ func (k *kiteClient) login() {
 
 }
 
+//Builds the form that sends the request.
+// Returns pointer to http.request
+func (k *kiteClient) histFormBuilder(FROM string, TO string, DURATION string, exchangeToken string) *http.Request {
+
+	req, err := http.NewRequest(GET, API_ROOT+HISTORICAL+exchangeToken+"/"+DURATION, nil)
+	helper.CheckError(err)
+
+	form := req.URL.Query()
+	form.Add("X-Kite-Version", KITE_VERSION)
+	form.Add("api_key", k.Client_API_KEY)
+	form.Add("access_token", k.Client_ACC_TOKEN)
+	form.Add("from", FROM)
+	form.Add("to", TO)
+	req.URL.RawQuery = form.Encode()
+
+	req, err = http.NewRequest(GET, req.URL.String(), nil)
+	helper.CheckError(err)
+
+	return req
+
+}
+
 //dates of format yyyy-mm-dd
-//concurrent safe as long as a million copies are not called, I THINK
+//concurrent safe for now.
+//Limited to 1 call per second per instance. Current max limit is 3 calls per second, which is ridiculously slow but whatever.
 func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from string, to string, filename string, ch chan bool) {
 	ch <- true
 	//fmt.Println("WE HERE")
 	//Create HTTP client
 	fmt.Printf("Starting to acquire %s from %s to %s \n", filename[0:len(filename)-4], from, to)
-	hc := helper.HttpClient(30)
+	hc := helper.HttpClient(DEFAULT_TIMEOUT)
+	curr, _ := time.Parse(DEFAULT_DATE_LAYOUT, from)
+	final, _ := time.Parse(DEFAULT_DATE_LAYOUT, to)
+	valid := false //used to find the right starting location for an invalid date range
 	//Create basic request
 	//If duration is day then we can just grab the entire interval at once
+	// Assuming the interval exists
 	if duration == DAY {
+		var message []byte
 
-		req, err := http.NewRequest(GET, API_ROOT+HISTORICAL+exchangeToken+"/"+duration, nil)
-		helper.CheckError(err)
-		//Add parameters to request
-		form := req.URL.Query()
-		form.Add("api_key", k.Client_API_KEY)
-		form.Add("access_token", k.Client_ACC_TOKEN)
-		form.Add("from", from)
-		form.Add("to", to)
-		req.URL.RawQuery = form.Encode()
-		//Create new request with parameters
-		req, err = http.NewRequest(GET, req.URL.String(), nil)
-		helper.CheckError(err)
-		//Get the historical data
-		resp, err := hc.Do(req)
-		helper.CheckError(err, resp)
+		// while the message is invalid, repeat till either the message becomes valid or we run out of the possible range
+		for !valid {
+			//Build the request
+			req := k.histFormBuilder(curr.Format(DEFAULT_DATE_LAYOUT), final.Format(DEFAULT_DATE_LAYOUT), duration, exchangeToken)
+			//Send the request
+			resp, err := hc.Do(req)
+			//Make sure there isn't a generic error
+			helper.CheckError(err, resp)
 
-		//Read it
-		message, err := ioutil.ReadAll(resp.Body)
-		helper.CheckError(err)
-		//	fmt.Println(string(message))
+			//Read it
+			message, err = ioutil.ReadAll(resp.Body)
+			helper.CheckError(err)
+			// if message is empty, we need to do it again, but lets try 1 month ahead as there is no data for current month
+			if string(message) == "" {
+
+				curr = curr.Add(helper.MAX_TIME)
+				fmt.Printf("Invalid Date range for %s. Trying to acquire from %s to %s \n", filename[0:len(filename)-4],
+					curr.Format(DEFAULT_DATE_LAYOUT), final.Format(DEFAULT_DATE_LAYOUT))
+				time.Sleep(time.Second * 1) // Need a 1 second timer between new requests to not break things
+
+				if final.Sub(curr) < 0 {
+					fmt.Println("Start date greater than end date!")
+					os.Exit(0) // TODO: Change this to not os.Exit
+				}
+			} else {
+				valid = true
+			}
+
+		}
 		//Parse to get Candles
 		data, _, _, err := jsonparser.Get(message, "data", "candles")
 		helper.CheckError(err)
-
 		//Format correctly
 		data = helper.FormatData(string(data))
 
 		//Store
 		err = ioutil.WriteFile("data/"+filename, data, 0644)
 		helper.CheckError(err)
+
 	} else { //if Duration is not day then we need to split it into multiple days
 		dataFile, _ := os.OpenFile("data/"+filename,
 			os.O_WRONLY|os.O_CREATE, 0666)
-		curr, _ := time.Parse(DEFAULT_DATE_LAYOUT, from)
-		final, _ := time.Parse(DEFAULT_DATE_LAYOUT, to)
+
 		// start is i, increment is i to i + 30 days, stop when the difference between final and now is less than 28
-		for curr = curr.Add(-1 * 24 * time.Hour); final.Sub(curr) > 24*29*time.Hour; curr = curr.Add(24 * 29 * time.Hour) {
-			curr = curr.Add(24 * time.Hour)
-			req, err := http.NewRequest(GET, API_ROOT+HISTORICAL+exchangeToken+"/"+duration, nil)
-			helper.CheckError(err)
-			//Add parameters to request
-			form := req.URL.Query()
-			form.Add("api_key", k.Client_API_KEY)
-			form.Add("access_token", k.Client_ACC_TOKEN)
-			form.Add("from", curr.Format(DEFAULT_DATE_LAYOUT))
-			form.Add("to", (curr.Add(29 * 24 * time.Hour)).Format(DEFAULT_DATE_LAYOUT))
-			req.URL.RawQuery = form.Encode()
-			//fmt.Println(req.URL.String())
-			req, err = http.NewRequest(GET, req.URL.String(), nil)
-			helper.CheckError(err)
-			//Get the historical data
-			resp, err := hc.Do(req)
-			time.Sleep(1 * time.Second)
-			helper.CheckError(err, resp)
-			message, err := ioutil.ReadAll(resp.Body)
-			helper.CheckError(err)
-			//	fmt.Println(string(message))
-			//Parse to get Candles
-			data, _, _, err := jsonparser.Get(message, "data", "candles")
-			helper.CheckError(err)
-			data = helper.FormatData(string(data))
-			_, err = dataFile.Write(data)
-			_, err = dataFile.Write([]byte("\n"))
-			helper.CheckError(err)
-			//fmt.Println("Looped")
+		for curr = curr; final.Sub(curr) > 0; curr = helper.AddCurr(curr, final) {
+			var message []byte
+			// while the message is invalid, repeat till either the message becomes valid or we run out of the possible range
+			// find the valid date range by checking 1 month periods till valid message is received
+			for !valid {
+				//Build the request
+				req := k.histFormBuilder(curr.Format(DEFAULT_DATE_LAYOUT), curr.Add(helper.MAX_TIME).Format(DEFAULT_DATE_LAYOUT), duration, exchangeToken)
+				//Send the request
+				//fmt.Println(req)
+				resp, err := hc.Do(req)
+				//Make sure there isn't a generic error
+				if err != nil {
+					fmt.Println(err.Error())
+				}
+				helper.CheckError(err, resp)
+				//Read it
+				message, err = ioutil.ReadAll(resp.Body)
+				//fmt.Println(err.Error())
+				//helper.CheckError(err)
+				// if message is empty, we need to do it again, but lets try 1 month ahead as there is no data for current month
+				if string(message) == "" {
+
+					curr = curr.Add(helper.MAX_TIME)
+					fmt.Printf("Invalid Date range for %s. Trying to acquire from %s to %s \n", filename[0:len(filename)-4],
+						curr.Format(DEFAULT_DATE_LAYOUT), final.Format(DEFAULT_DATE_LAYOUT))
+					time.Sleep(time.Second * 1) // Need a 1 second timer between new requests to not break things
+
+					if final.Sub(curr) < 0 {
+						fmt.Println("Start date greater than end date!")
+						os.Exit(0) // TODO: Change this to not os.Exit
+					}
+				} else {
+					fmt.Println("VALID RANGE FOUND")
+					valid = true
+				}
+			}
+
+			//need to build request now that we're in the valid region
+			if valid == true {
+				var req *http.Request
+				if final.Sub(curr.Add(helper.MAX_TIME)) < 0 {
+					req = k.histFormBuilder(curr.Format(DEFAULT_DATE_LAYOUT), final.Format(DEFAULT_DATE_LAYOUT), duration, exchangeToken)
+
+				} else {
+					req = k.histFormBuilder(curr.Format(DEFAULT_DATE_LAYOUT), curr.Add(helper.MAX_TIME).Format(DEFAULT_DATE_LAYOUT), duration, exchangeToken)
+				} //Send the request
+				resp, err := hc.Do(req)
+				//Make sure there isn't a generic error
+				helper.CheckError(err, resp)
+				//Read it
+				message, err = ioutil.ReadAll(resp.Body)
+				time.Sleep(time.Second * 1)
+				data, _, _, err := jsonparser.Get(message, "data", "candles")
+
+				data = helper.FormatData(string(data))
+				_, err = dataFile.Write(data)
+				//_, err = dataFile.Write([]byte("\n"))
+				helper.CheckError(err)
+				//fmt.Println("Looped")
+				fmt.Printf("INPROGRESS: Finished acquring %s from %s to %s \n", filename[0:len(filename)-4], curr, curr.Add(helper.MAX_TIME))
+				//fmt.Println(final.Sub(curr))
+			}
+
+			if final.Sub(curr.Add(helper.MAX_TIME)) < 0 {
+				break
+			}
 
 		}
-		//TODO: Fix this so there is only the for loop instead of doing it twice
-		//repeat for last remaining bit
-		req, err := http.NewRequest(GET, API_ROOT+HISTORICAL+exchangeToken+"/"+duration, nil)
-		helper.CheckError(err)
-		form := req.URL.Query()
-		form.Add("api_key", k.Client_API_KEY)
-		form.Add("access_token", k.Client_ACC_TOKEN)
-		form.Add("from", curr.Format(DEFAULT_DATE_LAYOUT))
-		form.Add("to", final.Format(DEFAULT_DATE_LAYOUT))
-		req.URL.RawQuery = form.Encode()
-		//	fmt.Println(req.URL.String())
-		req, err = http.NewRequest(GET, req.URL.String(), nil)
-		helper.CheckError(err)
-		//Get the historical data
-		resp, err := hc.Do(req)
-		helper.CheckError(err, resp)
-		message, err := ioutil.ReadAll(resp.Body)
-		helper.CheckError(err)
-		//	fmt.Println(string(message))
-		//Parse to get Candles
-		data, _, _, err := jsonparser.Get(message, "data", "candles")
-		helper.CheckError(err)
-		data = helper.FormatData(string(data))
-		_, err = dataFile.Write(data)
-		helper.CheckError(err)
 		dataFile.Close()
 		fmt.Printf("FINISHED acquring %s from %s to %s \n", filename[0:len(filename)-4], from, to)
 		<-ch
-
 	}
-
 }
