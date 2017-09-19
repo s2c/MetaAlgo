@@ -18,11 +18,13 @@ const (
 	ALL_GOOD           int           = 0
 	INP_EXC_ERR_MSG    string        = "InputException"
 	MAX_TIME           time.Duration = 14 * 24 * time.Hour
+	VALID_TIME         time.Duration = time.Hour * 12
 )
 
 //Either expand or kill, stifling right now
 func CheckError(e error, resp ...*http.Response) int {
-	if resp != nil && resp[0].StatusCode != 200 {
+	if resp != nil {
+
 		data, _ := ioutil.ReadAll(resp[0].Body)
 		msg, _ := jsonparser.GetString(data, "error_type")
 
@@ -67,7 +69,7 @@ func AccessTokenValidity(AccesTokenFile string) bool {
 	fi, err := os.Stat(AccesTokenFile)
 	if os.IsNotExist(err) {
 		return false
-	} else if (time.Now().Sub(fi.ModTime())) > time.Hour*6 {
+	} else if (time.Now().Sub(fi.ModTime())) > VALID_TIME {
 		return false
 	} else {
 		return true

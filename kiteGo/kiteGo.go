@@ -7,6 +7,7 @@ import (
 	"github.com/buger/jsonparser"
 	"io/ioutil"
 	"kite-go/helper"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -74,8 +75,9 @@ func KiteClient(configFile string, ReqToken ...string) *kiteClient {
 
 	// jsonParser magic
 	data, err := ioutil.ReadFile(configFile)
+
 	if err != nil {
-		helper.CheckError(err)
+		log.Fatal(err)
 	}
 
 	k.Client_API_SECRET, _ = jsonparser.GetString(data, SECRET_FIELD)
@@ -88,9 +90,11 @@ func KiteClient(configFile string, ReqToken ...string) *kiteClient {
 	validAcc := helper.AccessTokenValidity(ACC_TOKEN_FILE)
 	if validAcc {
 		contByte, err := ioutil.ReadFile(ACC_TOKEN_FILE)
+
 		if err != nil {
-			helper.CheckError(err)
+			log.Fatal(err)
 		}
+
 		contString := string(contByte)
 		k.SetAccessToken(contString) // If yes then just read and set Access Token
 
@@ -129,19 +133,27 @@ func (k *kiteClient) login() {
 	form.Add("checksum", checksum)
 	//Create the request
 	req, err := http.NewRequest(POST, API_ROOT+TOKEN_URL, strings.NewReader(form.Encode()))
-	helper.CheckError(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	//Do the request
 	resp, err := hc.Do(req)
-	helper.CheckError(err, resp)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	//Read the response
 	message, err := (ioutil.ReadAll(resp.Body))
-	helper.CheckError(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	//parse accesstoken and store
 	accToken, _, _, err := jsonparser.Get(message, "data", "access_token")
-	helper.CheckError(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 	k.SetAccessToken(string(accToken))
 	if k.Client_ACC_TOKEN != "" {
 
@@ -150,7 +162,9 @@ func (k *kiteClient) login() {
 
 	//parse publictoken and store
 	pubToken, _, _, err := jsonparser.Get(message, "data", "public_token")
-	helper.CheckError(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 	k.SetPublicToken(string(pubToken))
 	if k.Client_PUB_TOKEN != "" {
 		fmt.Println("Public Key set")
@@ -163,7 +177,9 @@ func (k *kiteClient) login() {
 func (k *kiteClient) histFormBuilder(FROM string, TO string, DURATION string, exchangeToken string) *http.Request {
 
 	req, err := http.NewRequest(GET, API_ROOT+HISTORICAL+exchangeToken+"/"+DURATION, nil)
-	helper.CheckError(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	form := req.URL.Query()
 	form.Add("X-Kite-Version", KITE_VERSION)
@@ -174,7 +190,9 @@ func (k *kiteClient) histFormBuilder(FROM string, TO string, DURATION string, ex
 	req.URL.RawQuery = form.Encode()
 
 	req, err = http.NewRequest(GET, req.URL.String(), nil)
-	helper.CheckError(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	return req
 
@@ -205,13 +223,15 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 			//Send the request
 			resp, err := hc.Do(req)
 			//Make sure there isn't a generic error
-			helper.CheckError(err, resp)
 
 			//Read it
 			message, err = ioutil.ReadAll(resp.Body)
-			helper.CheckError(err)
+			if err != nil {
+				log.Fatal(err)
+			}
+			response, _ := jsonparser.GetString(message, "message")
 			// if message is empty, we need to do it again, but lets try 1 month ahead as there is no data for current month
-			if string(message) == "" {
+			if string(response) == "No candles found based on token and time and candleType." {
 
 				curr = curr.Add(helper.MAX_TIME)
 				fmt.Printf("Invalid Date range for %s. Trying to acquire from %s to %s \n", filename[0:len(filename)-4],
@@ -220,7 +240,10 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 
 				if final.Sub(curr) < 0 {
 					fmt.Println("Start date greater than end date!")
-					os.Exit(0) // TODO: Change this to not os.Exit
+					os.Remove("data/" + filename)
+					fmt.Printf("Error acquring %s from %s to %s , SKIPPING \n", filename[0:len(filename)-4], from, to)
+					<-ch   // Race condition here but hopefully not a big deal. Prolly should fix at some point
+					return // TODO: Change this to not os.Exit
 				}
 			} else {
 				valid = true
@@ -229,13 +252,17 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 		}
 		//Parse to get Candles
 		data, _, _, err := jsonparser.Get(message, "data", "candles")
-		helper.CheckError(err)
+		if err != nil {
+			log.Fatal(err)
+		}
 		//Format correctly
 		data = helper.FormatData(string(data))
 
 		//Store
 		err = ioutil.WriteFile("data/"+filename, data, 0644)
-		helper.CheckError(err)
+		if err != nil {
+			log.Fatal(err)
+		}
 
 	} else { //if Duration is not day then we need to split it into multiple days
 		dataFile, _ := os.OpenFile("data/"+filename,
@@ -244,9 +271,10 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 		// start is i, increment is i to i + 30 days, stop when the difference between final and now is less than 28
 		for curr = curr; final.Sub(curr) > 0; curr = helper.AddCurr(curr, final) {
 			var message []byte
+			i := 0
 			// while the message is invalid, repeat till either the message becomes valid or we run out of the possible range
 			// find the valid date range by checking 1 month periods till valid message is received
-			for !valid {
+			for ; !valid; i++ {
 				//Build the request
 				req := k.histFormBuilder(curr.Format(DEFAULT_DATE_LAYOUT), curr.Add(helper.MAX_TIME).Format(DEFAULT_DATE_LAYOUT), duration, exchangeToken)
 				//Send the request
@@ -254,24 +282,32 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 				resp, err := hc.Do(req)
 				//Make sure there isn't a generic error
 				if err != nil {
-					fmt.Println(err.Error())
+					log.Fatal(err)
 				}
-				helper.CheckError(err, resp)
+
 				//Read it
 				message, err = ioutil.ReadAll(resp.Body)
-				//fmt.Println(err.Error())
-				//helper.CheckError(err)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				//fmt.Println(string(message))
+				response, _ := jsonparser.GetString(message, "message")
 				// if message is empty, we need to do it again, but lets try 1 month ahead as there is no data for current month
-				if string(message) == "" {
+				if string(response) == "No candles found based on token and time and candleType." {
 
 					curr = curr.Add(helper.MAX_TIME)
 					fmt.Printf("Invalid Date range for %s. Trying to acquire from %s to %s \n", filename[0:len(filename)-4],
 						curr.Format(DEFAULT_DATE_LAYOUT), final.Format(DEFAULT_DATE_LAYOUT))
 					time.Sleep(time.Second * 1) // Need a 1 second timer between new requests to not break things
 
-					if final.Sub(curr) < 0 {
-						fmt.Println("Start date greater than end date!")
-						os.Exit(0) // TODO: Change this to not os.Exit
+					if final.Sub(curr) < 0 || i > 24 {
+						//fmt.Println("Start date greater than end date!")
+						dataFile.Close()
+						os.Remove("data/" + filename)
+						fmt.Printf("Error acquring %s from %s to %s , SKIPPING \n", filename[0:len(filename)-4], from, to)
+						<-ch   // Race condition here but hopefully not a big deal. Prolly should fix at some point
+						return // TODO: Change this to not os.Exit
 					}
 				} else {
 					fmt.Println("VALID RANGE FOUND")
@@ -290,16 +326,23 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 				} //Send the request
 				resp, err := hc.Do(req)
 				//Make sure there isn't a generic error
-				helper.CheckError(err, resp)
+				if err != nil {
+					log.Fatal(err)
+				}
 				//Read it
 				message, err = ioutil.ReadAll(resp.Body)
+				if err != nil {
+					log.Fatal(err)
+				}
 				time.Sleep(time.Second * 1)
 				data, _, _, err := jsonparser.Get(message, "data", "candles")
 
 				data = helper.FormatData(string(data))
 				_, err = dataFile.Write(data)
 				//_, err = dataFile.Write([]byte("\n"))
-				helper.CheckError(err)
+				if err != nil {
+					log.Fatal(err)
+				}
 				//fmt.Println("Looped")
 				fmt.Printf("INPROGRESS: Finished acquring %s from %s to %s \n", filename[0:len(filename)-4], curr, curr.Add(helper.MAX_TIME))
 				//fmt.Println(final.Sub(curr))
