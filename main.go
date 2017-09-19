@@ -40,7 +40,7 @@ func main() {
 	fmt.Println("Starting Client")
 	client := kiteGo.KiteClient(CONFIG_FILE)
 	f, _ := os.Open("instruments.txt")
-	FROM := "2008-01-01"
+	FROM := "2012-01-01"
 	TO := "2017-06-01"
 
 	instruments := csv.NewReader(bufio.NewReader(f))
@@ -49,7 +49,7 @@ func main() {
 		if err == io.EOF {
 			break
 		}
-		//exchangeToken := record[0]
+		exchangeToken := record[0]
 		fname := record[2]
 		// tickSize := record[7]
 		segment := record[11]
@@ -57,7 +57,7 @@ func main() {
 		//fmt.Println(tickSize == "1")
 		if segment == "NSE" || segment == "BSE" {
 			fmt.Println("HERE")
-			go client.GetHistorical(MINUTE, "2012673", FROM, TO, fname+".csv", HistPool)
+			go client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool)
 		}
 	}
 	//

@@ -45,7 +45,7 @@ const (
 	KITE_VERSION  string = "3"
 )
 const (
-	DEFAULT_TIMEOUT         time.Duration = 7
+	DEFAULT_TIMEOUT         time.Duration = 60
 	DEFAULT_FULLTIME_LAYOUT string        = "2006-01-02T15:04:05-0700"
 	DEFAULT_DATE_LAYOUT     string        = "2006-01-02"
 	ACC_TOKEN_FILE          string        = "ACCTOKEN.txt"
@@ -223,6 +223,9 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 			//Send the request
 			resp, err := hc.Do(req)
 			//Make sure there isn't a generic error
+			if err != nil {
+				log.Fatal(err)
+			}
 
 			//Read it
 			message, err = ioutil.ReadAll(resp.Body)
