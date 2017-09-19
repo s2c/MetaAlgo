@@ -313,7 +313,7 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 						return // TODO: Change this to not os.Exit
 					}
 				} else {
-					fmt.Println("VALID RANGE FOUND")
+					fmt.Printf("VALID RANGE FOUND for %s \n", filename)
 					valid = true
 				}
 			}

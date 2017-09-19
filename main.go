@@ -56,7 +56,7 @@ func main() {
 		// fmt.Println(fname + " " + exchangeToken + " " + tickSize + " " + segment)
 		//fmt.Println(tickSize == "1")
 		if segment == "NSE" || segment == "BSE" {
-			fmt.Println("HERE")
+			fmt.Printf("ADDED %s to QUEUE \n", (fname))
 			go client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool)
 		}
 	}
