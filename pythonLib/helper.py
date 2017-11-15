@@ -19,7 +19,7 @@ def readData(filename):
                    )
 
 # Making sure that 2 timeseries are synced to the smaller time series
-# Goes through 2 timeseries and eliminates any data from any date that is not in both
+# Goes through 2 timeseries and eliminates data which are not present on the same date on both the timeseries
 # Input: TimeSeries 1, TimeSeries 2
 # Output: synced TimeSeries
 def sycTimeSeries(ts1,ts2):
@@ -42,7 +42,7 @@ def sycTimeSeries(ts1,ts2):
 
 #Creates Lagged series
 #Goes through a series and generates an lag+1 dimensional pandas DataFrame that has each previous lag timeunit
-#as a column and current as the last column
+#as a column and current as the last cobilumn
 #Input: Pandas Series
 #Output: lag+1 dimensional DataFrame
 
@@ -58,29 +58,41 @@ def timeseriesLagged(data, lag=60):
     return df
 
 
-# Binarizes the last column into 1 or 0.
-# dif is the minimum difference between buy and sell that triggers a 1 or a 0. 
-# Rate is the percent per transasction cost 
+# Binarizes the last column into 1, 0, -1. 1 = buy 0 = do nothing -1 = sell
+# Rate is the percent increase or decrease that should trigger a buy or a sell
 # lag is the time unit of lag. 
 # Input: lagged pandas DataFrame, uint lag, double dif, double flat
 # Output : Pandas Dataframe with last column binarized
-def binarizeTime(series,lag,dif=0,rate=0.01):
-    #-1 is autocalculate the dif 
-    if dif != 0:
-        raise AssertionError("dif not yet baked in! ")
-    series[str(lag+1)] = np.where(series[str(lag)] + dif < series[str(lag+1)], 1, 0)
-    return series
+
+def binarizeTime(resLagged,rate = 0):
+	resLagged = resLagged.copy() # Make a deep copy
+	last = np.shape(resLagged)[1] # find the length of the data friend
+	last = str(last) # convert it to string for loc
+	change = resLagged.iloc[:,-2] - resLagged.iloc[:,-1] 
+	changeToSell =  change < (-rate*resLagged.iloc[:,-2])# Did Price fall by OldPrice + oldPrice*rate
+	changeToBuy  =  change > (rate*resLagged.iloc[:,-2])# Did Price Rise by OldPrice + OldPrice*rate
+	changeToHold = ~changeToBuy & ~changeToSell # Everything else is No change
+	resLagged.loc[changeToSell,last] = -1 # Set sell to -1
+	resLagged.loc[changeToBuy,last] = 1 # Set buy to 1
+	resLagged.loc[changeToHold,last] = 0 # Set to 0
+
+	return resLagged
 
 # Finds the right lag given a target correlation.
 # data is the time series
 # targetCorr is the targetCorr
+# Supressed: Supresses message about lag being greater than 99, if a lag of above 99 is about to be used.
 # Inputs: Pandas Series, float targetCorr between -1 and 1
-# Outputs: optimal lag 
-def findLag(data, targetCorr):
+# Outputs: lag that matches the targetCorr, limited to a max of 100
+def findLag(data, targetCorr,suppressed=True):
     if targetCorr > 1 or targetCorr < -1:
         raise ValueError("targetCorr must be between -1 and 1!")
     lag = 0
     for i in range(1, len(data)):
+        if i >= 99:
+            if suppressed != True:
+                print("GREATER THAN 99,returning 99") 
+            return i
         curCorr = data.autocorr(i)
         if curCorr < targetCorr:
             lag = i-1

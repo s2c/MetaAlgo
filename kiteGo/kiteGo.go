@@ -201,6 +201,7 @@ func (k *kiteClient) histFormBuilder(FROM string, TO string, DURATION string, ex
 //dates of format yyyy-mm-dd
 //concurrent safe for now.
 //Limited to 1 call per second per instance. Current max limit is 3 calls per second, which is ridiculously slow but whatever.
+//TODO: Store ticker name as well as the data
 func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from string, to string, filename string, ch chan bool) {
 	ch <- true
 	//fmt.Println("WE HERE")
@@ -312,6 +313,11 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 						<-ch   // Race condition here but hopefully not a big deal. Prolly should fix at some point
 						return // TODO: Change this to not os.Exit
 					}
+
+				} else if string(response) == "Invalid segment in instrument token" {
+					log.Println("Use instrument tokens, the first column, you dumbass")
+					<-ch
+					return
 				} else {
 					fmt.Printf("VALID RANGE FOUND for %s \n", filename)
 					valid = true
@@ -334,6 +340,7 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 				}
 				//Read it
 				message, err = ioutil.ReadAll(resp.Body)
+				// fmt.Println((string(message)))
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -341,6 +348,7 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 				data, _, _, err := jsonparser.Get(message, "data", "candles")
 
 				data = helper.FormatData(string(data))
+
 				_, err = dataFile.Write(data)
 				//_, err = dataFile.Write([]byte("\n"))
 				if err != nil {
@@ -349,6 +357,8 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 				//fmt.Println("Looped")
 				fmt.Printf("INPROGRESS: Finished acquring %s from %s to %s \n", filename[0:len(filename)-4], curr, curr.Add(helper.MAX_TIME))
 				//fmt.Println(final.Sub(curr))
+				// Write new line so next day begins at newline
+				_, err = dataFile.Write([]byte(string('\n')))
 			}
 
 			if final.Sub(curr.Add(helper.MAX_TIME)) < 0 {

@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	API_KEY      string = "l3zela16irfa6rax"
-	REQ_TOKEN    string = "4be382t2y1czjvpwia91pomqenxx1d6j" //Constant for this session
-	API_SECRET   string = "qefc9t3ovposnzvvy94k3sckna7vwuxs"
+	// API_KEY      string = "l3zela16irfa6rax"
+	// REQ_TOKEN    string = "4be382t2y1czjvpwia91pomqenxx1d6j" //Constant for this session
+	// API_SECRET   string = "qefc9t3ovposnzvvy94k3sckna7vwuxs"
 	MINUTE       string = "minute"
 	THREE_MIN    string = "3minute"
 	FIVE_MIN     string = "5minute"
@@ -60,14 +60,6 @@ func main() {
 			go client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool)
 		}
 	}
-	//
-
-	//
-	// go client.GetHistorical(MINUTE, "2012673", "2005-01-01", "2017-06-01", "GePowerIndia.csv", HistPool)
-	// //go client.GetHistorical(MINUTE, "136522756", "2017-01-01", "2017-06-01", "A2Z.csv", HistPool)
-	// // go client.GetHistorical(MINUTE, "136385796", "2017-01-01", "2017-06-01", "Voltamp.csv", HistPool)
-	// go client.GetHistorical(FIVE_MIN, "4296449", "2017-01-01", "2017-06-01", "GETD.csv", HistPool)
-	// go client.GetHistorical(FIVE_MIN, "3884545", "2017-01-01", "2017-06-01", "TRIL.csv", HistPool)
 
 	fmt.Println("DONE WITH ALL TASKS")
 	var input string
