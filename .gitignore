@@ -17,3 +17,4 @@ kite-go
 *.txt
 *.csv
 clean.sh
+models/*
