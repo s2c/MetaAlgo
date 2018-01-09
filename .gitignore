@@ -22,3 +22,4 @@ kite-go
 *.csv
 clean.sh
 models/*
+*.h5

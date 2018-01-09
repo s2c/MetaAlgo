@@ -7,11 +7,11 @@ import (
 	"kite-go/kiteGo"
 	// "strings"
 	//"flag"
-	"os"
+	// "os"
 	// "sync"
-	"bufio"
-	"encoding/csv"
-	"io"
+	// "bufio"
+	// "encoding/csv"
+	// "io"
 )
 
 const (
@@ -31,35 +31,38 @@ const (
 )
 
 func main() {
-	os.RemoveAll("data/.csv")
-	os.MkdirAll("data/", 0777)
+	// os.RemoveAll("data/.csv")
+	// os.MkdirAll("data/", 0777)
 	HistPool := make(chan bool, MAX_ROUTINES)
 	// REGULATORY REQUIREMENT
 	// Go to https://kite.trade/connect/login?api_key=l3zela16irfa6rax to get request token for the day
 	// curl https://api.kite.trade/instruments to retreive master list
 	fmt.Println("Starting Client")
 	client := kiteGo.KiteClient(CONFIG_FILE)
-	f, _ := os.Open("instruments.txt")
-	FROM := "2012-01-01"
-	TO := "2017-06-01"
+	// f, _ := os.Open("instruments.txt")
+	FROM := "2017-06-01"
+	TO := "2017-12-01"
 
-	instruments := csv.NewReader(bufio.NewReader(f))
-	for {
-		record, err := instruments.Read()
-		if err == io.EOF {
-			break
-		}
-		exchangeToken := record[0]
-		fname := record[2]
-		// tickSize := record[7]
-		segment := record[11]
-		// fmt.Println(fname + " " + exchangeToken + " " + tickSize + " " + segment)
-		//fmt.Println(tickSize == "1")
-		if segment == "NSE" || segment == "BSE" {
-			fmt.Printf("ADDED %s to QUEUE \n", (fname))
-			go client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool)
-		}
-	}
+	// instruments := csv.NewReader(bufio.NewReader(f))
+	// for {
+	// 	record, err := instruments.Read()
+	// 	if err == io.EOF {
+	// 		break
+	// 	}
+	// 	exchangeToken := record[0]
+	// 	fname := record[2]
+	// 	// tickSize := record[7]
+	// 	segment := record[11]
+	// 	// fmt.Println(fname + " " + exchangeToken + " " + tickSize + " " + segment)
+	// 	//fmt.Println(tickSize == "1")
+	// 	if segment == "NSE" || segment == "BSE" {
+	// 		fmt.Printf("ADDED %s to QUEUE \n", (fname))
+	// 		go client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool)
+	// 	}
+	// }
+	exchangeToken := "261889"
+	fname := "fedbank"
+	client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool)
 
 	fmt.Println("DONE WITH ALL TASKS")
 	var input string

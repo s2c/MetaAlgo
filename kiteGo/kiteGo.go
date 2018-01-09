@@ -244,7 +244,7 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 
 				if final.Sub(curr) < 0 {
 					fmt.Println("Start date greater than end date!")
-					os.Remove("data/" + filename)
+					os.Remove(filename)
 					fmt.Printf("Error acquring %s from %s to %s , SKIPPING \n", filename[0:len(filename)-4], from, to)
 					<-ch   // Race condition here but hopefully not a big deal. Prolly should fix at some point
 					return // TODO: Change this to not os.Exit
@@ -263,13 +263,13 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 		data = helper.FormatData(string(data))
 
 		//Store
-		err = ioutil.WriteFile("data/"+filename, data, 0644)
+		err = ioutil.WriteFile(filename, data, 0644)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 	} else { //if Duration is not day then we need to split it into multiple days
-		dataFile, _ := os.OpenFile("data/"+filename,
+		dataFile, _ := os.OpenFile(filename,
 			os.O_WRONLY|os.O_CREATE, 0666)
 
 		// start is i, increment is i to i + 30 days, stop when the difference between final and now is less than 28
@@ -308,7 +308,7 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 					if final.Sub(curr) < 0 || i > 24 {
 						//fmt.Println("Start date greater than end date!")
 						dataFile.Close()
-						os.Remove("data/" + filename)
+						os.Remove(filename)
 						fmt.Printf("Error acquring %s from %s to %s , SKIPPING \n", filename[0:len(filename)-4], from, to)
 						<-ch   // Race condition here but hopefully not a big deal. Prolly should fix at some point
 						return // TODO: Change this to not os.Exit
