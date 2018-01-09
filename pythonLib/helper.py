@@ -61,23 +61,22 @@ def timeseriesLagged(data, lag=60):
 # Binarizes the last column into 1, 0, -1. 1 = buy 0 = do nothing -1 = sell
 # Rate is the percent increase or decrease that should trigger a buy or a sell
 # lag is the time unit of lag. 
-# lookahead is how much ahead are we looking for for an increase
 # Input: lagged pandas DataFrame, uint lag, double dif, double flat
 # Output : Pandas Dataframe with last column binarized
-# To Do: Fix lookahead
-def binarizeTime(resLagged,rate = 0,flat = 0, lookahead = 0):
+
+def binarizeTime(resLagged,rate = 0):
 	resLagged = resLagged.copy() # Make a deep copy
 	last = np.shape(resLagged)[1] # find the length of the data friend
-	last = str(last-lookahead) # convert it to string for loc
-	change = resLagged.iloc[:,-2-lookahead] - resLagged.iloc[:,-lookahead:-1] 
-	changeToSell =  change < flat + (-rate*resLagged.iloc[:,-2])# Did Price fall by OldPrice + oldPrice*rate +flat
-	changeToBuy  =  change > flat + (rate*resLagged.iloc[:,-2])# Did Price Rise by OldPrice + OldPrice*rate + flat
+	last = str(last) # convert it to string for loc
+	change = resLagged.iloc[:,-2] - resLagged.iloc[:,-1] 
+	changeToSell =  change < (-rate*resLagged.iloc[:,-2])# Did Price fall by OldPrice + oldPrice*rate
+	changeToBuy  =  change > (rate*resLagged.iloc[:,-2])# Did Price Rise by OldPrice + OldPrice*rate
 	changeToHold = ~changeToBuy & ~changeToSell # Everything else is No change
 	resLagged.loc[changeToSell,last] = -1 # Set sell to -1
 	resLagged.loc[changeToBuy,last] = 1 # Set buy to 1
 	resLagged.loc[changeToHold,last] = 0 # Set to 0
 
-	return resLagged[0,0:last]
+	return resLagged
 
 # Finds the right lag given a target correlation.
 # data is the time series

@@ -60,8 +60,8 @@ func main() {
 	// 		go client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool)
 	// 	}
 	// }
-	exchangeToken := "261889"
-	fname := "fedbank"
+	exchangeToken := "5619457"
+	fname := "HFCL"
 	client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool)
 
 	fmt.Println("DONE WITH ALL TASKS")
