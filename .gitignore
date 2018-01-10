@@ -22,4 +22,7 @@ kite-go
 *.csv
 clean.sh
 models/*
+plots/*
 *.h5
+*.pkl
+
