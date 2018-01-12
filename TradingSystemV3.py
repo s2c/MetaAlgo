@@ -56,15 +56,15 @@ portVals = []
 
 curIter = 0
 
-while curIter==0 or startDate.year == 2016:
-	query = "SELECT * FROM histdata WHERE ticker = 'HFCL' ORDER BY datetime ASC"
+while curIter==0 or (startDate.year == 2016) or (startDate.year == 2017 and startDate.month < 8) :
+	query = "SELECT * FROM histdata WHERE ticker = 'Suzlon' ORDER BY datetime ASC"
 	dat = pd.read_sql(query,engine)
 
 
 	startDate = starDate + dt.timedelta(days=7*curIter)
-	endDate = startDate +dt.timedelta(days = 7*12) # 3months of training
+	endDate = startDate +dt.timedelta(days = 7*12) # 7Days*4*5 3 months of training
 	backTestStart = endDate
-	backTestEnd = endDate + dt.timedelta(days=5)
+	backTestEnd = endDate + dt.timedelta(days=7)
 	res = dat[(dat['datetime'] > startDate) & (dat['datetime'] < endDate)]
 	curIter += 1
 
@@ -211,7 +211,7 @@ while curIter==0 or startDate.year == 2016:
 	learnRate = 0.5
 	batchSize = 10
 	totalBatches = (xTrain.shape[0]//batchSize)
-	epochs = 5
+	epochs = 3
 
 	nClasses = 2
 	nLength = xTrain.shape[1]
@@ -226,7 +226,7 @@ while curIter==0 or startDate.year == 2016:
 	# Keras
 	#https://arxiv.org/pdf/1709.05206.pdf LSTM-FCN
 	buyModelConv = Sequential()
-	buyModelConv.add(Conv1D(12,kernel_size= 1, strides=1,
+	buyModelConv.add(Conv1D(8,kernel_size= 1, strides=1,
 	                 input_shape=inputShape,
 	                 batch_size = None
 	                   ))
@@ -234,11 +234,11 @@ while curIter==0 or startDate.year == 2016:
 	buyModelConv.add(Activation('relu'))
 
 
-	buyModelConv.add(Conv1D(6, kernel_size= 1, strides=1))
+	buyModelConv.add(Conv1D(4, kernel_size= 1, strides=1))
 	buyModelConv.add(BatchNormalization())
 	buyModelConv.add(Activation('relu'))
 
-	buyModelConv.add(Conv1D(6,kernel_size= 1, strides=1))
+	buyModelConv.add(Conv1D(8,kernel_size= 1, strides=1))
 	buyModelConv.add(BatchNormalization())
 	buyModelConv.add(Activation('relu'))
 
@@ -246,8 +246,8 @@ while curIter==0 or startDate.year == 2016:
 	 ########################################
 	buyModelLSTM = Sequential()
 	buyModelLSTM.add(Permute((2, 1), input_shape=inputShape))
-	buyModelLSTM.add(LSTM(5))
-	buyModelLSTM.add(Dropout(0.5))
+	buyModelLSTM.add(LSTM(4))
+	buyModelLSTM.add(Dropout(0.3))
 	#############################
 
 	buyModel = Sequential()
@@ -271,7 +271,7 @@ while curIter==0 or startDate.year == 2016:
 	             y=yTrain, 
 	             class_weight=classWeight,
 	             validation_data = ([xVal,xVal],yVal),
-	             epochs = 5,
+	             epochs = epochs,
 	             verbose = 0)
 
 
@@ -345,7 +345,7 @@ while curIter==0 or startDate.year == 2016:
 	learnRate = 0.5
 	batchSize = 10
 	totalBatches = (xTrain.shape[0]//batchSize)
-	epochs = 5
+	epochs = 3
 
 	nClasses = 2
 	nLength = xTrain.shape[1]
@@ -381,7 +381,7 @@ while curIter==0 or startDate.year == 2016:
 	sellModelLSTM = Sequential()
 	sellModelLSTM.add(Permute((2, 1), input_shape=inputShape))
 	sellModelLSTM.add(LSTM(4))
-	sellModelLSTM.add(Dropout(0.5))
+	sellModelLSTM.add(Dropout(0.3))
 	#############################
 
 	sellModel = Sequential()
@@ -405,7 +405,7 @@ while curIter==0 or startDate.year == 2016:
 	             y=yTrain, 
 	             class_weight=classWeight,
 	             validation_data = ([xVal,xVal],yVal),
-	             epochs = 5,
+	             epochs = epochs,
 	             verbose = 0)
 
 
@@ -494,23 +494,25 @@ while curIter==0 or startDate.year == 2016:
 	        self.neuralBuy = neuralModel(
 	            self.datas[0], 
 	            period=self.params.lagPeriod, 
-	            neuralModel = self.params.buyNeural
+	            neuralModel = self.params.buyNeural,
+	            plot = False
 	        )
 	        
 	        self.neuralSell = neuralModel(
 	            self.datas[0], 
 	            period=self.params.lagPeriod, 
-	            neuralModel = self.params.SellNeural
+	            neuralModel = self.params.SellNeural,
+	            plot = False
 	        )
 
 
 	    def next(self):
 
 	        if self.neuralBuy[0] == 1: 
-	            buyOrd = self.buy_bracket(limitprice=self.dataclose+0.4,
+	            buyOrd = self.buy_bracket(limitprice=self.dataclose+0.05,
 	                                      price=self.dataclose,
-	                                      stopprice=self.dataclose-0.5,
-	                                      size = 200,
+	                                      stopprice=0,
+	                                      size = 400,
 	                                      valid = 0
 	                                     )
 
@@ -518,10 +520,10 @@ while curIter==0 or startDate.year == 2016:
 
 
 	        elif self.neuralSell[0] == 1:
-	            sellOrd = self.sell_bracket(limitprice=self.dataclose-0.3,
+	            sellOrd = self.sell_bracket(limitprice=self.dataclose - 0.05,#-(0.1*self.dataclose),
 	                          price=self.dataclose,
-	                          stopprice=self.dataclose+0.5,
-	                          size = 200,
+	                          stopprice=self.dataclose+1000,
+	                          size = 400,
 	                          valid = 0)
 
 
@@ -539,10 +541,14 @@ while curIter==0 or startDate.year == 2016:
 
 	    def show(self):
 	        mng = plt
-	#         plt.figure(figsize=(14, 6))
+	        fig = plt.gcf()
+	        fig.set_size_inches(18.5, 10.5)
+			# fig.savefig('test2png.png', dpi=100)
 	        title = str(backTestStart.date()) + " to " + str(backTestEnd.date()) 
 	        plt.title(title)
+
 	        plt.tight_layout()
+
 	        plt.savefig("plots/"+title)
 	        # plt.show()
 
@@ -550,7 +556,7 @@ while curIter==0 or startDate.year == 2016:
 	# In[950]:
 
 
-	fed = bt.feeds.GenericCSVData(dataname='data/HFCL.csv',
+	fed = bt.feeds.GenericCSVData(dataname='data/Suzlon.csv',
 	                              dtformat="%Y-%m-%dT%H:%M:%S%z",
 	                              openinterest=-1,
 	                              headers=False,
@@ -558,26 +564,33 @@ while curIter==0 or startDate.year == 2016:
 	                              todate= backTestEnd,
 	#                               timeframe=bt.TimeFrame.Minutes,
 	#                               tzinput = pytz.timezone('Asia/Kolkata'),
-	                              plot=False)
+	                              plot=True)
 
-
+	# brokerageCom = ((0.0001 +0.0000325)*0.18) + (0.0001 +0.0000325) + 0.00025
+	# print(brokerageCom)
 	cerebro = bt.Cerebro()
-	cerebro.broker.setcommission(commission=0.0001)
+	cerebro.broker.setcommission(commission=0.0002,margin = False)
 	cerebro.adddata(fed)
-	cerebro.addstrategy(TestStrategy)
+	cerebro.addstrategy(TestStrategy,plot=False)
 	cerebro.addobserver(bt.observers.Value)
-	# cerebro.addanalyzer(bt.analyzers.Returns , _name='Returns')
+	cerebro.addobserver(bt.observers.Trades)
+	cerebro.addobserver(bt.observers.BuySell)
+	# cerebro.addanalyzer(bt.analyzers.SharpeRatio , _name='Sharpe',timeframe = bt.TimeFrame.Minutes)
+	cerebro.addanalyzer(bt.analyzers.Returns , _name='Transactions', timeframe = bt.TimeFrame.Minutes)
 	print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+
 	thestrats = cerebro.run(stdstats=False)
-	# cerebro.addobserver(bt.observers.Broker)
-	# cerebro.addobserver(bt.observers.Value)
+
 	thestrat = thestrats[0]
 
-	# print('Sharpe Ratio:', thestrat.analyzers.Returns.get_analysis())
+	print('returns:', thestrat.analyzers.Transactions.get_analysis())
 
 	print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
 	cerebro.plot(start=backTestStart , end=backTestEnd,plotter = Plotter())
-	portVals.append(cerebro.broker.getvalue())
+	if (cerebro.broker.getvalue() < 9000):
+		portVals.append(9000)
+	else:
+		portVals.append(cerebro.broker.getvalue())
 
 import pickle
 
