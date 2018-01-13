@@ -75,6 +75,7 @@ def updateLastPrice():
 # To start off build the first 30 minutes of history
 print("Building first 30 minute history")
 for i in range(0,30):
+    sleep(60) # sleep for 60 seconds so we get the price after a minute 
     updateLastPrice()
     x = json.loads(lastPrice.payload.decode('utf-8'))
     if x['instrument_token'] == curInstr and x['tradeable'] == True:
@@ -82,9 +83,10 @@ for i in range(0,30):
     else:
         print("ERROR, ERROR, CONTACT SUPERVISOR")
         
-    sleep(60) # sleep for 60 seconds so we get the price after a minute 
+    print("min %d Done" % i)
 
 print ("History built")
+print(hist)
 
 
 # In[16]:
@@ -94,25 +96,23 @@ def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
     histScaled = skp.scale(hist)
     histScaled = histScaled.reshape(1,-1,1) # create scaled version for keras
     waitT = 0# wait for it to complete       
-    if bMod.predict([histScaled,histScaled]) > 0.5: # if buy probability is greater than 0.5
-        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],1) # place a buy order
+    if bMod.predict([histScaled,histScaled])[0][0] > 0.5: # if buy probability is greater than 0.5
+        print("Buying")
+        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],10) # place a buy order
         while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
             sleep(1)
             waitT += 1
-        if kite.orders(orderID)[-1]['status'] =="COMPLETE" : # when completed
-            orderId =  sellOrd(kiteCli,tSymbol,hist[-1]+0.05,1) # place the corresponding sell order
-        else:
-            print("FAILED")
+        # if kite.orders(orderID)[-1]['status'] =="COMPLETE" : # when completed
+        #     print("Bracket Buy Placed successfully")
         
-    elif sMod.predict([histScaled,histScaled]) > 0.5:
-        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],1) # place a sell order
+    elif sMod.predict([histScaled,histScaled])[0][0] > 0.5:
+        print("Selling")
+        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],10) # place a sell order
         while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
             sleep(1)
             waitT += 1
-        if kite.orders(orderID)[-1]['status'] =="COMPLETE" : # when completed
-            orderId =  buyOrd(kiteCli,tSymbol,hist[-1]-0.05,1) # place the corresponding sell order
-        else:
-            print("FAILED")
+        # if kite.orders(orderID)[-1]['status'] =="COMPLETE" : # when completed
+        #     print("Bracket sell completed succesfully")
     
     return waitT
     
@@ -130,6 +130,8 @@ def buyOrd(kiteCli,tSymbol,price,quant):
                                     product = "MIS",
                                     order_type = "LIMIT",
                                     price = price,
+                                    squareoff_value = price + 0.1,
+                                    stoploss_value = price - 0.1,
                                     validity = "DAY")
     return order
 
@@ -140,7 +142,9 @@ def sellOrd(kiteCli,hist,tSymbol,price,quant):
                                     transaction_type = "SELL",
                                     product = "MIS",
                                     order_type = "LIMIT",
-                                    price = hist[-1],
+                                    squareoff_value = price - 0.1,
+                                    stoploss_value = price + 0.1,
+                                    price = price,
                                     validity = "DAY")
     return order
 

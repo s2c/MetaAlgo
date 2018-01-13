@@ -55,16 +55,17 @@ utc = pytz.UTC
 starDate = utc.localize(dt.datetime(2016,1,2))
 endDate = utc.localize(dt.datetime(2016,1,2))
 portVals = []
+TransVals = []
 
 curIter = 0
 
-while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDate.month < 12) :
+while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDate.month == 1 and endDate.day <= 6) :
     query = "SELECT * FROM histdata WHERE ticker = 'Suzlon' ORDER BY datetime ASC"
     dat = pd.read_sql(query,engine)
 
 
     startDate = starDate + dt.timedelta(days=7*curIter)
-    endDate = startDate +dt.timedelta(days = 7*12) # 7Days*4*5 3 months of training
+    endDate = startDate +dt.timedelta(days = 7*4*18) # 1.5 year of training
     backTestStart = endDate
     backTestEnd = endDate + dt.timedelta(days=7)
     res = dat[(dat['datetime'] > startDate) & (dat['datetime'] < endDate)]
@@ -108,8 +109,8 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
     #     lag = 120 #nice round 2  hour intervals
     # print(lag)
     lag = 30 
-    lookahead = 5
-    flat = 0.05
+    lookahead = 60
+    flat = 0.1
     series = timeseriesLagged(data,lag + lookahead-1) # Generate the lagged series
 
 
@@ -142,12 +143,11 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
 
     # In[929]:
 
-
     # Get values from pandas series as we need a numpy array for our classifier
     BuySeriesVals = buySeries.values
     np.random.shuffle(BuySeriesVals) #shuffle the entire dataset
-    trainPercent = 0.9 # first 80% of the data is used for training
-    np.random.shuffle(BuySeriesVals)
+    trainPercent = 0.95 # first 80% of the data is used for training
+    # np.random.shuffle(BuySeriesVals)
     #Split into train and test
     trainBegin = int(trainPercent*len(BuySeriesVals)) 
     trains = BuySeriesVals[0:trainBegin]
@@ -185,8 +185,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
 
 
 
-
-    # In[930]:
+    # In[11]:
 
 
     # Compute Class weights
@@ -195,7 +194,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
     classWeight
 
 
-    # In[931]:
+    # In[12]:
 
 
     assert xTrain.shape[0] == yTrain.shape[0]
@@ -208,13 +207,13 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
     # 
     # A CNN to predict buy signals from the above generated data
 
-    # In[932]:
+    # In[13]:
 
 
     learnRate = 0.5
     batchSize = 10
     totalBatches = (xTrain.shape[0]//batchSize)
-    epochs = 3
+    epochs = 5
 
     nClasses = 2
     nLength = xTrain.shape[1]
@@ -223,7 +222,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
     # xTrainIter = xTrainDataSet.make_one_shot_iterator()
 
 
-    # In[933]:
+    # In[14]:
 
 
     # Keras
@@ -262,7 +261,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
     buyModel = Model(inputs=[im,im2],outputs=output)
 
 
-    # In[934]:
+    # In[ ]:
 
 
     # buyModel.summary()
@@ -271,18 +270,18 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
                   metrics=['accuracy'])
 
 
-    # In[935]:
+    # In[ ]:
 
 
     buyModel.fit(x=[xTrain,xTrain],
                  y=yTrain, 
                  class_weight=classWeight,
                  validation_data = ([xVal,xVal],yVal),
-                 epochs = epochs,
-                 verbose = 0)
+                 epochs = 3,
+                 verbose = 0    )
 
 
-    # In[936]:
+    # In[ ]:
 
 
     score = buyModel.evaluate([xTest,xTest], yTest, verbose=0)
@@ -292,12 +291,12 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
 
     # ## ConvNet for Sell
 
-    # In[937]:
+    # In[ ]:
 
 
     # Get values from pandas series as we need a numpy array for our classifier
     sellSeriesVals = sellSeries.values
-    trainPercent = 0.9 # first 80% of the data is used for training
+    trainPercent = 0.95 # first 80% of the data is used for training
 
     #Split into train and test
     trainBegin = int(trainPercent*len(sellSeriesVals)) 
@@ -323,7 +322,6 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
     xVal = xVal.reshape(xVal.shape[0],xVal.shape[1],1)
 
 
-
     # # # encode class values as integers
     # encoder = LabelEncoder()
     # encoder.fit(yTrain)
@@ -338,7 +336,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
 
 
 
-    # In[938]:
+    # In[ ]:
 
 
     # Compute Class weights
@@ -352,7 +350,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
     learnRate = 0.5
     batchSize = 10
     totalBatches = (xTrain.shape[0]//batchSize)
-    epochs = 3
+    epochs = 5
 
     nClasses = 2
     nLength = xTrain.shape[1]
@@ -361,7 +359,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
     # xTrainIter = xTrainDataSet.make_one_shot_iterator()
 
 
-    # In[939]:
+    # In[ ]:
 
 
     # Keras
@@ -401,8 +399,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
     sellModel = Model(inputs=[im,im2],outputs=output)
 
 
-
-    # In[940]:
+    # In[ ]:
 
 
     # sellModel.summary()
@@ -411,18 +408,18 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
                   metrics=['accuracy'])
 
 
-    # In[941]:
+    # In[ ]:
 
 
     sellModel.fit(x=[xTrain,xTrain],
                  y=yTrain, 
                  class_weight=classWeight,
                  validation_data = ([xVal,xVal],yVal),
-                 epochs = epochs,
+                 epochs = 3,
                  verbose = 0)
 
 
-    # In[942]:
+    # In[ ]:
 
 
     score = sellModel.evaluate([xTest,xTest], yTest, verbose=0)
@@ -430,16 +427,11 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
     print('Test accuracy:', score[1])
 
 
-    # In[943]:
+    # In[ ]:
 
 
     buyModel.save('buyModel.h5')
     sellModel.save('sellModel.h5')
-
-
-    # # Implement backtester
-
-    # In[944]:
 
 
     import backtrader as bt
@@ -447,26 +439,6 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
     import datetime as dt
     import pytz
     import math
-
-    # b = load_model('buyModel.h5')
-    # s = load_model('sellModel.h5')
-
-
-    # In[945]:
-
-
-    #Basic API setup
-    # kite = KiteConnect(api_key="l3zela16irfa6rax")
-    # data = kite.request_access_token("ldcuznh4fqg5k2w0hrtdubmga4xr43q6", secret="qefc9t3ovposnzvvy94k3sckna7vwuxs")
-
-
-    # In[946]:
-
-
-    # endDate = utc.localize(dt.datetime(2017,3,31))
-    # # endDate+dt.timedelta(days=1)
-    # # endDate
-    # finDat = dat[(dat['datetime'] > endDate+dt.timedelta(days=1)) & (dat['datetime'] < endDate+dt.timedelta(days=7))]
 
 
     # In[947]:
@@ -479,7 +451,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
         win_streak = analyzer.streak.won.longest
         lose_streak = analyzer.streak.lost.longest
         pnl_net = round(analyzer.pnl.net.total,2)
-        strike_rate = (total_won / total_closed) * 100
+        strike_rate = round((total_won / total_closed) * 100,2)
         #Designate the rows
         h1 = ['Total Open', 'Total Closed', 'Total Won', 'Total Lost']
         h2 = ['Strike Rate','Win Streak', 'Losing Streak', 'PnL Net']
@@ -511,15 +483,12 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
             data = np.array(data) # put it in a numpy array
             data = skp.scale(data)
             data = data.reshape(1, -1,1) # get it ready for the neural network
-            # print(self.p.neuralModel.predict([data,data])[0][0] > 0.6 )   
-            if self.p.neuralModel.predict([data,data])[0][0] > 0.5 : # atleast 60% sure
-                self.lines.Ind[0] = 1
-            else:
-                self.lines.Ind[0] = 0
-            
+            prob = self.p.neuralModel.predict([data,data])[0][0]
+    #         print(prob)
+            self.lines.Ind[0] = 1 if  prob > 0.5 else 0 # predict and round to 0 for no action and 1 for buy
 
 
-    # In[948]:
+    # In[ ]:
 
 
     class TestStrategy(bt.Strategy):
@@ -549,13 +518,13 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
 
 
         def next(self):
-            # self.close()      
+    #         print(type(self.dataclose))
 
             if self.neuralBuy[0] == 1: 
-                buyOrd = self.buy_bracket(limitprice=self.dataclose+0.05,
+                buyOrd = self.buy_bracket(limitprice=self.dataclose+0.1,
                                           price=self.dataclose,
-                                          stopprice=0,
-                                          size = 400,   
+                                          stopprice=self.dataclose-0.1,
+                                          size = 300,
                                           valid = 0
                                          )
 
@@ -563,17 +532,11 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
 
 
             elif self.neuralSell[0] == 1:
-                sellOrd = self.sell_bracket(limitprice=self.dataclose - 0.05,#-(0.1*self.dataclose),
+                sellOrd = self.sell_bracket(limitprice=self.dataclose-0.1,
                               price=self.dataclose,
-                              stopprice=self.dataclose+1000,
-                              size = 400,
+                              stopprice=self.dataclose+0.1,
+                              size = 300,
                               valid = 0)
-
-            # 
-
-
-    #     def stop(self):
-    #         self.close()
 
 
     # In[949]:
@@ -614,7 +577,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
     # brokerageCom = ((0.0001 +0.0000325)*0.18) + (0.0001 +0.0000325) + 0.00025
     # print(brokerageCom)
     cerebro = bt.Cerebro()
-    cerebro.broker.setcommission(commission=0.0001,margin = False)
+    cerebro.broker.setcommission(commission=0.0004  ,margin = False)
     cerebro.adddata(fed) 
     cerebro.addstrategy(TestStrategy,plot=False)
     cerebro.addobserver(bt.observers.Value)
@@ -639,9 +602,14 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2017 and endDat
     else:
         portVals.append(cerebro.broker.getvalue())
 
+    TransVals.append(thestrat.analyzers.Transactions.get_analysis())
+
 import pickle
 
-with open('objs.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
+with open('portVals.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
     pickle.dump(portVals,f)
+
+with open('objs.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
+    pickle.dump(TransVals,f)
 
     
