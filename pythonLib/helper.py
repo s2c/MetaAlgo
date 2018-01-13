@@ -52,6 +52,7 @@ def timeseriesLagged(data, lag=60):
     df = pd.concat(columns,axis=1)
     df.fillna(0, inplace=True)
     df.columns = [str(lag+2-x) for x in range(1,lag+2)]
+    # df.reset_index(inplace=True,drop=False)
     df = df[df.columns[::-1]] #Flip because we want newer data on the right
     df= df.iloc[lag+1:] # drop the first 'lag' columns because zeroes.
     df.reset_index(drop=True,inplace=True)
@@ -64,19 +65,23 @@ def timeseriesLagged(data, lag=60):
 # Input: lagged pandas DataFrame, uint lag, double dif, double flat
 # Output : Pandas Dataframe with last column binarized
 
-def binarizeTime(resLagged,rate = 0):
-	resLagged = resLagged.copy() # Make a deep copy
-	last = np.shape(resLagged)[1] # find the length of the data friend
-	last = str(last) # convert it to string for loc
-	change = resLagged.iloc[:,-2] - resLagged.iloc[:,-1] 
-	changeToSell =  change < (-rate*resLagged.iloc[:,-2])# Did Price fall by OldPrice + oldPrice*rate
-	changeToBuy  =  change > (rate*resLagged.iloc[:,-2])# Did Price Rise by OldPrice + OldPrice*rate
-	changeToHold = ~changeToBuy & ~changeToSell # Everything else is No change
-	resLagged.loc[changeToSell,last] = -1 # Set sell to -1
-	resLagged.loc[changeToBuy,last] = 1 # Set buy to 1
-	resLagged.loc[changeToHold,last] = 0 # Set to 0
-
-	return resLagged
+def binarizeTime(resLagged,rate = 0,lookahead = 0, flat = 0):
+    if lookahead <= 0 :
+        raise Exception("lookahead Must be 1 or higher!")
+    resLagged = resLagged.copy() # Make a deep copy
+    last = np.shape(resLagged)[1] # find the length of the data 
+    last = last-lookahead # convert it to string for loc
+    colsLookAhead = list(resLagged.loc[:,str(last+1):str(last + lookahead)])
+    colsLast = resLagged[str(last)]
+    diffs = resLagged[colsLookAhead].subtract(colsLast,axis=0)
+    changeToBuy = np.any(diffs > flat,axis=1)
+    changeToSell = np.any(diffs < -flat,axis=1)
+    changeToHold = ~changeToBuy & ~changeToSell
+    resLagged = resLagged.drop(colsLookAhead,1)
+    resLagged.loc[changeToSell,str(last+1)] = -1 # Set sell to -1
+    resLagged.loc[changeToBuy,str(last+1)] = 1 # Set buy to 1
+    resLagged.loc[changeToHold,str(last+1)] = 0 # Set to 0
+    return resLagged
 
 # Finds the right lag given a target correlation.
 # data is the time series

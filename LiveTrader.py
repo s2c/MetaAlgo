@@ -69,6 +69,8 @@ def updateLastPrice():
     sleep(0.1)
 
 
+# In[4]:
+
 
 # To start off build the first 30 minutes of history
 print("Building first 30 minute history")
@@ -84,6 +86,8 @@ for i in range(0,30):
 
 print ("History built")
 
+
+# In[16]:
 
 
 def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
@@ -115,6 +119,8 @@ def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
     
 
 
+# In[17]:
+
 
 def buyOrd(kiteCli,tSymbol,price,quant):
     order = kiteCli.order_place(tradingsymbol = tSymbol,
@@ -130,13 +136,17 @@ def buyOrd(kiteCli,tSymbol,price,quant):
 def sellOrd(kiteCli,hist,tSymbol,price,quant):
     order = kiteCli.order_place(tradingsymbol = tSymbol,
                                     exchange = "NSE",
-                                    quantity = quant,
+                                    quantity = 1,
                                     transaction_type = "SELL",
                                     product = "MIS",
                                     order_type = "LIMIT",
                                     price = hist[-1],
                                     validity = "DAY")
     return order
+
+
+# In[20]:
+
 
 
 tSymbol = "SUZLON"
