@@ -7,6 +7,7 @@ It uses a neural network to learn trading parameters and then predicts buys and 
 
 
 CHECK INSTRUMENT TOKENS BEFORE STARTING
+
 TRAIN NETWORKS BEFORE THE FOLLOWING
 
 To run:

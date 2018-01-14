@@ -83,7 +83,7 @@ for i in range(0,30):
     else:
         print("ERROR, ERROR, CONTACT SUPERVISOR")
         
-    print("min %d Done" % i)
+    print("min %d Done" % (i+1))
 
 print ("History built")
 print(hist)
@@ -93,6 +93,7 @@ print(hist)
 
 
 def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
+    print(hist)
     histScaled = skp.scale(hist)
     histScaled = histScaled.reshape(1,-1,1) # create scaled version for keras
     waitT = 0# wait for it to complete       
@@ -106,7 +107,7 @@ def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
         #     print("Bracket Buy Placed successfully")
         
     elif sMod.predict([histScaled,histScaled])[0][0] > 0.5:
-        print("Selling")
+        print("Selling  ")
         orderId =  sellOrd(kiteCli,tSymbol,hist[-1],10) # place a sell order
         while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
             sleep(1)
@@ -135,7 +136,7 @@ def buyOrd(kiteCli,tSymbol,price,quant):
                                     validity = "DAY")
     return order
 
-def sellOrd(kiteCli,hist,tSymbol,price,quant):
+def sellOrd(kiteCli,tSymbol,price,quant):
     order = kiteCli.order_place(tradingsymbol = tSymbol,
                                     exchange = "NSE",
                                     quantity = 1,
