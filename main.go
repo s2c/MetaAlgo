@@ -40,8 +40,8 @@ func main() {
 	fmt.Println("Starting Client")
 	client := kiteGo.KiteClient(CONFIG_FILE)
 	// f, _ := os.Open("instruments.txt")
-	FROM := "2016-01-14"
-	TO := "2018-01-12"
+	FROM := "2018-01-13"
+	TO := "2018-01-17"
 
 	// instruments := csv.NewReader(bufio.NewReader(f))
 	// for {
@@ -60,8 +60,8 @@ func main() {
 	// 		go client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool)
 	// 	}
 	// }
-	exchangeToken := "3076609"
-	fname := "Suzlon"
+	exchangeToken := "3463169"
+	fname := "modelsFin/GMRINFRA"
 	client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool)
 
 	fmt.Println("DONE WITH ALL TASKS")

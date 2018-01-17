@@ -19,11 +19,11 @@ from keras.models import load_model
 
 
 lastPrice = "" # global variable that is updated with the last price every minute
-buyModel = load_model('buyModel.h5') # load the buy model
-sellModel = load_model('sellModel.h5') # load the sell model
+buyModel = load_model('modelsFin/buyModel.h5') # load the buy model
+sellModel = load_model('modelsFin/sellModel.h5') # load the sell model
 lag = int(buyModel.layers[0].input.shape[1]) # get how much lag is being used based on the input to the model
 hist = np.zeros(lag)
-curInstr = 3076609
+curInstr = 3463169
 
 
 vals = json.load(open('config.json'))
@@ -96,24 +96,32 @@ def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
     print(hist)
     histScaled = skp.scale(hist)
     histScaled = histScaled.reshape(1,-1,1) # create scaled version for keras
+    # print(np.array(histScaled).shape)
     waitT = 0# wait for it to complete       
-    if bMod.predict([histScaled,histScaled])[0][0] > 0.5: # if buy probability is greater than 0.5
+    buyProb = bMod.predict([histScaled,histScaled])[0][0] 
+    sellProb = sMod.predict([histScaled,histScaled])[0][0]
+    if buyProb >= 0.6: # if buy probability is greater than 0.6
+        print("Buyprob greater than 0.6 at %.2f" % buyProb)
         print("Buying")
-        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],10) # place a buy order
-        while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
-            sleep(1)
-            waitT += 1
+        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],300) # place a buy order
+        # orderId = sellOrd(kiteClimtSymbol,hist[-1]+0.1,300)
+        # while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
+        #     sleep(1)
+        #     waitT += 1
         # if kite.orders(orderID)[-1]['status'] =="COMPLETE" : # when completed
-        #     print("Bracket Buy Placed successfully")
-        
-    elif sMod.predict([histScaled,histScaled])[0][0] > 0.5:
+        #     print("Bracket Buy Placed successfully")     
+    elif    sellProb >= 0.6:
+        print ("Sellprob greater than 0.6 at %.2f" % sellProb)
         print("Selling  ")
-        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],10) # place a sell order
-        while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
-            sleep(1)
-            waitT += 1
+        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],300) # place a sell order
+        # orderId = buyOrd(kiteClimtSymbol,hist[-1]-0.1,300)
+        # while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
+        #     sleep(1)
+        #     waitT += 1
         # if kite.orders(orderID)[-1]['status'] =="COMPLETE" : # when completed
         #     print("Bracket sell completed succesfully")
+    else:
+        print("No probabilities greater than thresholds, skipping. \nBuyProb = %.2f Sellprob = %.2f" % (buyProb,sellProb))
     
     return waitT
     
@@ -131,20 +139,22 @@ def buyOrd(kiteCli,tSymbol,price,quant):
                                     product = "MIS",
                                     order_type = "LIMIT",
                                     price = price,
-                                    squareoff_value = price + 0.1,
-                                    stoploss_value = price - 0.1,
+                                    squareoff_value = 0.1,
+                                    stoploss_value =  0.1,
+                                    variety = "bo",
                                     validity = "DAY")
     return order
 
 def sellOrd(kiteCli,tSymbol,price,quant):
     order = kiteCli.order_place(tradingsymbol = tSymbol,
                                     exchange = "NSE",
-                                    quantity = 1,
+                                    quantity = quant,
                                     transaction_type = "SELL",
                                     product = "MIS",
                                     order_type = "LIMIT",
-                                    squareoff_value = price - 0.1,
-                                    stoploss_value = price + 0.1,
+                                    squareoff_value = 0.1,
+                                    stoploss_value = 0.1,
+                                    variety = "bo",
                                     price = price,
                                     validity = "DAY")
     return order
@@ -156,13 +166,16 @@ def sellOrd(kiteCli,tSymbol,price,quant):
 
 tSymbol = "SUZLON"
 print("Starting Trading Engine")
-while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 15:
+while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 15: # Last order goes in at 2 PM
     w = placeOrder(kite,hist,buyModel,sellModel,tSymbol)
-    sleep(60-w) # sleep for 60 - whatever time w was running for
+    sleep(60-w) # sleep for 60 - whatever time w was running for seconds
     updateLastPrice() # update the last price
     cur = json.loads(lastPrice.payload.decode('utf-8'))['last_price'] # get the latest price
-    hist[0] = cur      # replace oldest price with newest
-    hist = np.roll(hist,-1) # left shift the array
+    # noise = np.random.normal(0,0.05,lag)
+    hist[0] = cur      # replace oldest price with newes
+    hist = np.roll(hist,-1) # left shift the array so newest price is in front
+    # hist = hist + noise
+
 
 print ("TRADE DAY IS OVER")
 

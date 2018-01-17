@@ -60,12 +60,12 @@ TransVals = []
 curIter = 0
 
 while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDate.month == 1 and endDate.day <= 6) :
-    query = "SELECT * FROM histdata WHERE ticker = 'Suzlon' ORDER BY datetime ASC"
+    query = "SELECT * FROM histdata WHERE ticker = 'GMRINFRA' ORDER BY datetime ASC"
     dat = pd.read_sql(query,engine)
 
 
     startDate = starDate + dt.timedelta(days=7*curIter)
-    endDate = startDate +dt.timedelta(days = 7*4*18) # 1.5 year of training
+    endDate = startDate +dt.timedelta(days = 7*4*18) # 18 months of Training of training
     backTestStart = endDate
     backTestEnd = endDate + dt.timedelta(days=7)
     res = dat[(dat['datetime'] > startDate) & (dat['datetime'] < endDate)]
@@ -146,7 +146,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
     # Get values from pandas series as we need a numpy array for our classifier
     BuySeriesVals = buySeries.values
     np.random.shuffle(BuySeriesVals) #shuffle the entire dataset
-    trainPercent = 0.95 # first 80% of the data is used for training
+    trainPercent = 0.999 # first 80% of the data is used for training
     # np.random.shuffle(BuySeriesVals)
     #Split into train and test
     trainBegin = int(trainPercent*len(BuySeriesVals)) 
@@ -278,7 +278,9 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
                  class_weight=classWeight,
                  validation_data = ([xVal,xVal],yVal),
                  epochs = 3,
-                 verbose = 0    )
+                 verbose = 0,
+                 batch_size = 300   
+                  )
 
 
     # In[ ]:
@@ -296,14 +298,14 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
 
     # Get values from pandas series as we need a numpy array for our classifier
     sellSeriesVals = sellSeries.values
-    trainPercent = 0.95 # first 80% of the data is used for training
-
+    trainPercent = 0.999 # first 80% of the data is used for training
+    np.random.shuffle(sellSeriesVals)
     #Split into train and test
     trainBegin = int(trainPercent*len(sellSeriesVals)) 
     trains = sellSeriesVals[0:trainBegin]
     train,val = train_test_split(trains)
     test = sellSeriesVals[trainBegin:]
-    np.random.shuffle(train) # shuffle the training dataset
+    # np.random.shuffle(train) # shuffle the training dataset
 
     # Split into x and y
     xTrain,yTrain = train[:,0:-1],train[:,-1] # X is the first lag elements. Y is the lag+1 element
@@ -388,7 +390,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
      ########################################
     sellModelLSTM = Sequential()
     sellModelLSTM.add(Permute((2, 1), input_shape=inputShape))
-    sellModelLSTM.add(LSTM(4))
+    sellModelLSTM.add(LSTM(5))
     sellModelLSTM.add(Dropout(0.5))
     im2 = sellModelLSTM.layers[0].input
     sellLstmInput = sellModelLSTM(im2)
@@ -416,6 +418,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
                  class_weight=classWeight,
                  validation_data = ([xVal,xVal],yVal),
                  epochs = 3,
+                 batch_size = 300,  
                  verbose = 0)
 
 
@@ -440,7 +443,8 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
     import pytz
     import math
 
-
+    # buyModel = load_model('modelsFin/buyModel.h5')
+    # sellModel = load_model('modelsFin/buyModel.h5')
     # In[947]:
     def printTradeAnalysis(analyzer):
         #Get the results we are interested in
@@ -481,11 +485,12 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
         def next(self):
             data = self.data.get(size=self.p.period) # get the data
             data = np.array(data) # put it in a numpy array
+            # print(data)
             data = skp.scale(data)
             data = data.reshape(1, -1,1) # get it ready for the neural network
             prob = self.p.neuralModel.predict([data,data])[0][0]
     #         print(prob)
-            self.lines.Ind[0] = 1 if  prob > 0.5 else 0 # predict and round to 0 for no action and 1 for buy
+            self.lines.Ind[0] = 1 if  prob > 0.6 else 0 # predict and round to 0 for no action and 1 for buy
 
 
     # In[ ]:
@@ -564,7 +569,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
     # In[950]:
 
 
-    fed = bt.feeds.GenericCSVData(dataname='data/Suzlon.csv',
+    fed = bt.feeds.GenericCSVData(dataname='data/GMRINFRA.csv',
                                   dtformat="%Y-%m-%dT%H:%M:%S%z",
                                   openinterest=-1,
                                   headers=False,
@@ -577,7 +582,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
     # brokerageCom = ((0.0001 +0.0000325)*0.18) + (0.0001 +0.0000325) + 0.00025
     # print(brokerageCom)
     cerebro = bt.Cerebro()
-    cerebro.broker.setcommission(commission=0.0004  ,margin = False)
+    cerebro.broker.setcommission(commission=0.000425  ,margin = False)
     cerebro.adddata(fed) 
     cerebro.addstrategy(TestStrategy,plot=False)
     cerebro.addobserver(bt.observers.Value)
@@ -595,7 +600,10 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
     print('returns:', thestrat.analyzers.Transactions.get_analysis())
     printTradeAnalysis(thestrat.analyzers.ta.get_analysis())
 
-    print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+    try:
+        print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+    except:
+        print ("No trades!")
     cerebro.plot(start=backTestStart , end=backTestEnd,plotter = Plotter())
     if (cerebro.broker.getvalue() < 9000):
         portVals.append(9000)
