@@ -41,7 +41,7 @@ func main() {
 	client := kiteGo.KiteClient(CONFIG_FILE)
 	// f, _ := os.Open("instruments.txt")
 	FROM := "2018-01-13"
-	TO := "2018-01-17"
+	TO := "2018-01-30"
 
 	// instruments := csv.NewReader(bufio.NewReader(f))
 	// for {

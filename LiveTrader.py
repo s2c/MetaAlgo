@@ -103,7 +103,7 @@ def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
     if buyProb >= 0.6: # if buy probability is greater than 0.6
         print("Buyprob greater than 0.6 at %.2f" % buyProb)
         print("Buying")
-        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],300) # place a buy order
+        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],200) # place a buy order
         # orderId = sellOrd(kiteClimtSymbol,hist[-1]+0.1,300)
         # while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
         #     sleep(1)
@@ -113,7 +113,7 @@ def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
     elif    sellProb >= 0.6:
         print ("Sellprob greater than 0.6 at %.2f" % sellProb)
         print("Selling  ")
-        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],300) # place a sell order
+        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],200) # place a sell order
         # orderId = buyOrd(kiteClimtSymbol,hist[-1]-0.1,300)
         # while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
         #     sleep(1)
@@ -164,7 +164,7 @@ def sellOrd(kiteCli,tSymbol,price,quant):
 
 
 
-tSymbol = "SUZLON"
+tSymbol = "GMRINFRA"
 print("Starting Trading Engine")
 while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 15: # Last order goes in at 2 PM
     w = placeOrder(kite,hist,buyModel,sellModel,tSymbol)

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 utc = pytz.UTC
 backTestStart = utc.localize(dt.datetime(2018,1,13))
-backTestEnd = utc.localize(dt.datetime(2018,1,18))
+backTestEnd = utc.localize(dt.datetime(2018,1,19))
 portVals = []
 TransVals = []
 lag = 30
@@ -63,7 +63,7 @@ class neuralModel(bt.Indicator):
         data = data.reshape(1, -1,1) # get it ready for the neural network
         prob = self.p.neuralModel.predict([data,data])[0][0]
 #         print(prob)
-        self.lines.Ind[0] = 1 if  prob >= 0.65  else 0 # predict and round to 0 for no action and 1 for buy
+        self.lines.Ind[0] = 1 if  prob >= 0.60  else 0 # predict and round to 0 for no action and 1 for buy
 
 
 # In[ ]:
@@ -102,7 +102,7 @@ class TestStrategy(bt.Strategy):
             buyOrd = self.buy_bracket(limitprice=self.dataclose+0.1,
                                       price=self.dataclose,
                                       stopprice=self.dataclose-0.1,
-                                      size = 400,
+                                      size = 200,
                                       valid = 0
                                      )
 
@@ -113,7 +113,7 @@ class TestStrategy(bt.Strategy):
             sellOrd = self.sell_bracket(limitprice=self.dataclose-0.1,
                           price=self.dataclose,
                           stopprice=self.dataclose+0.1,
-                          size = 400,
+                          size = 200,
                           valid = 0)
 
 
