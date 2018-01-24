@@ -74,8 +74,8 @@ def binarizeTime(resLagged,rate = 0,lookahead = 0, flat = 0):
     colsLookAhead = list(resLagged.loc[:,str(last+1):str(last + lookahead)])
     colsLast = resLagged[str(last)]
     diffs = resLagged[colsLookAhead].subtract(colsLast,axis=0)
-    changeToBuy = np.any(diffs > flat,axis=1)
-    changeToSell = np.any(diffs < -flat,axis=1)
+    changeToBuy = np.any(diffs >= flat,axis=1)
+    changeToSell = np.any(diffs <= -flat,axis=1)
     changeToHold = ~changeToBuy & ~changeToSell
     resLagged = resLagged.drop(colsLookAhead,1)
     resLagged.loc[changeToSell,str(last+1)] = -1 # Set sell to -1

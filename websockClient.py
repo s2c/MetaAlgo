@@ -17,26 +17,6 @@ import paho.mqtt.client as mqtt
 vals = json.load(open('config.json'))
 
 
-# In[14]:
-
-
-# def on_connect(client, userdata, flags, rc):
-#     print("Connected with result code "+str(rc))
-
-#     # Subscribing in on_connect() means that if we lose the connection and
-#     # reconnect then subscriptions will be renewed.
-#     client.subscribe("priceData")
-
-# # The callback for when a PUBLISH message is received from the server.
-# def on_message(client, userdata, msg):
-#     print(msg.topic+" "+str(msg.payload))
-
-
-
-# In[ ]:
-
-
-
 kws = WebSocket(vals['API_KEY'],vals['API_SECRET'],vals['USER_ID'])
 client = mqtt.Client()
 client.connect("localhost", 1883, 60)
@@ -54,7 +34,7 @@ def on_connect(ws):
         ws.subscribe([3463169])
 
         # Set Suzlon to tick in `full` mode.
-        ws.set_mode(ws.MODE_LTP, [3463169])
+        ws.set_mode(ws.MODE_QUOTE, [3463169])
         
     # Assign the callbacks.
 kws.on_tick = on_tick

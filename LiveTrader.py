@@ -88,7 +88,6 @@ for i in range(0,30):
 print ("History built")
 print(hist)
 
-
 # In[16]:
 
 
@@ -100,20 +99,21 @@ def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
     waitT = 0# wait for it to complete       
     buyProb = bMod.predict([histScaled,histScaled])[0][0] 
     sellProb = sMod.predict([histScaled,histScaled])[0][0]
-    if buyProb >= 0.6: # if buy probability is greater than 0.6
+    print("BuyProb = %.2f Sellprob = %.2f" % (buyProb,sellProb))
+    if buyProb > 0.6 and sellProb < 0.55: # if buy probability is greater than 0.6
         print("Buyprob greater than 0.6 at %.2f" % buyProb)
         print("Buying")
-        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],200) # place a buy order
+        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],600) # place a buy order
         # orderId = sellOrd(kiteClimtSymbol,hist[-1]+0.1,300)
         # while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
         #     sleep(1)
         #     waitT += 1
         # if kite.orders(orderID)[-1]['status'] =="COMPLETE" : # when completed
         #     print("Bracket Buy Placed successfully")     
-    elif    sellProb >= 0.6:
+    elif sellProb > 0.6 and buyProb < 0.55:
         print ("Sellprob greater than 0.6 at %.2f" % sellProb)
         print("Selling  ")
-        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],200) # place a sell order
+        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],600) # place a sell order
         # orderId = buyOrd(kiteClimtSymbol,hist[-1]-0.1,300)
         # while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
         #     sleep(1)
@@ -121,7 +121,7 @@ def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
         # if kite.orders(orderID)[-1]['status'] =="COMPLETE" : # when completed
         #     print("Bracket sell completed succesfully")
     else:
-        print("No probabilities greater than thresholds, skipping. \nBuyProb = %.2f Sellprob = %.2f" % (buyProb,sellProb))
+        print("No probabilities greater than thresholds, skipping")
     
     return waitT
     
@@ -140,7 +140,7 @@ def buyOrd(kiteCli,tSymbol,price,quant):
                                     order_type = "LIMIT",
                                     price = price,
                                     squareoff_value = 0.1,
-                                    stoploss_value =  0.1,
+                                    stoploss_value =  1,
                                     variety = "bo",
                                     validity = "DAY")
     return order
@@ -153,7 +153,7 @@ def sellOrd(kiteCli,tSymbol,price,quant):
                                     product = "MIS",
                                     order_type = "LIMIT",
                                     squareoff_value = 0.1,
-                                    stoploss_value = 0.1,
+                                    stoploss_value = 1,
                                     variety = "bo",
                                     price = price,
                                     validity = "DAY")

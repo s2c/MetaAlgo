@@ -52,20 +52,20 @@ DATA_DIR = 'data'
 dbString = 'postgresql://s2c:JANver95@localhost:5432/stockdata'
 engine = sqlalchemy.create_engine(dbString) 
 utc = pytz.UTC
-starDate = utc.localize(dt.datetime(2016,1,2))
-endDate = utc.localize(dt.datetime(2016,1,2))
+starDate = utc.localize(dt.datetime(2015,1,3))
+endDate = utc.localize(dt.datetime(2018,1,20))
 portVals = []
 TransVals = []
 
 curIter = 0
 
-while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDate.month == 1 and endDate.day <= 6) :
+while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (endDate.year == 2018 and endDate.month == 1 and endDate.day <= 6) :
     query = "SELECT * FROM histdata WHERE ticker = 'GMRINFRA' ORDER BY datetime ASC"
     dat = pd.read_sql(query,engine)
 
 
     startDate = starDate + dt.timedelta(days=7*curIter)
-    endDate = startDate +dt.timedelta(days = 7*4*18) # 18 months of Training of training
+    endDate = startDate +dt.timedelta(days = 7*4*30) # 30 months of Training of training
     backTestStart = endDate
     backTestEnd = endDate + dt.timedelta(days=7)
     res = dat[(dat['datetime'] > startDate) & (dat['datetime'] < endDate)]
@@ -109,8 +109,9 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
     #     lag = 120 #nice round 2  hour intervals
     # print(lag)
     lag = 30 
-    lookahead = 60
+    lookahead = 45
     flat = 0.1
+    drop = 0.1
     series = timeseriesLagged(data,lag + lookahead-1) # Generate the lagged series
 
 
@@ -211,7 +212,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
 
 
     learnRate = 0.5
-    batchSize = 10
+    batchSize = 300
     totalBatches = (xTrain.shape[0]//batchSize)
     epochs = 5
 
@@ -240,7 +241,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
     buyModelConv.add(BatchNormalization())
     buyModelConv.add(Activation('relu'))
 
-    buyModelConv.add(Conv1D(6,kernel_size= 1, strides=1))
+    buyModelConv.add(Conv1D(12,kernel_size= 1, strides=1))
     buyModelConv.add(BatchNormalization())
     buyModelConv.add(Activation('relu'))
 
@@ -250,7 +251,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
      ########################################
     buyModelLSTM = Sequential()
     buyModelLSTM.add(Permute((2, 1), input_shape=inputShape))
-    buyModelLSTM.add(LSTM(5))
+    buyModelLSTM.add(LSTM(30))
     buyModelLSTM.add(Dropout(0.5))
     im2 = buyModelLSTM.layers[0].input
     buyLstmInput = buyModelLSTM(im2)
@@ -279,7 +280,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
                  validation_data = ([xVal,xVal],yVal),
                  epochs = 3,
                  verbose = 0,
-                 batch_size = 300   
+                 batch_size = batchSize   
                   )
 
 
@@ -350,7 +351,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
     assert xVal.shape[0] == yVal.shape[0]
     yTrain
     learnRate = 0.5
-    batchSize = 10
+    batchSize = 300
     totalBatches = (xTrain.shape[0]//batchSize)
     epochs = 5
 
@@ -367,7 +368,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
     # Keras
     #https://arxiv.org/pdf/1709.05206.pdf LSTM-FCN
     sellModelConv = Sequential()
-    sellModelConv.add(Conv1D(8,kernel_size= 1, strides=1,
+    sellModelConv.add(Conv1D(12,kernel_size= 1, strides=1,
                      input_shape=inputShape,
                      batch_size = None
                        ))
@@ -375,11 +376,11 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
     sellModelConv.add(Activation('relu'))
 
 
-    sellModelConv.add(Conv1D(4, kernel_size= 2, strides=1))
+    sellModelConv.add(Conv1D(6, kernel_size= 1, strides=1))
     sellModelConv.add(BatchNormalization())
     sellModelConv.add(Activation('relu'))
 
-    sellModelConv.add(Conv1D(8,kernel_size= 2, strides=1))
+    sellModelConv.add(Conv1D(12,kernel_size= 1, strides=1))
     sellModelConv.add(BatchNormalization())
     sellModelConv.add(Activation('relu'))
 
@@ -390,7 +391,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
      ########################################
     sellModelLSTM = Sequential()
     sellModelLSTM.add(Permute((2, 1), input_shape=inputShape))
-    sellModelLSTM.add(LSTM(5))
+    sellModelLSTM.add(LSTM(30))
     sellModelLSTM.add(Dropout(0.5))
     im2 = sellModelLSTM.layers[0].input
     sellLstmInput = sellModelLSTM(im2)
@@ -418,7 +419,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
                  class_weight=classWeight,
                  validation_data = ([xVal,xVal],yVal),
                  epochs = 3,
-                 batch_size = 300,  
+                 batch_size = batchSize,  
                  verbose = 0)
 
 
@@ -490,7 +491,7 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
             data = data.reshape(1, -1,1) # get it ready for the neural network
             prob = self.p.neuralModel.predict([data,data])[0][0]
     #         print(prob)
-            self.lines.Ind[0] = 1 if  prob > 0.6 else 0 # predict and round to 0 for no action and 1 for buy
+            self.lines.Ind[0] = prob # predict and round to 0 for no action and 1 for buy
 
 
     # In[ ]:
@@ -525,10 +526,10 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
         def next(self):
     #         print(type(self.dataclose))
 
-            if self.neuralBuy[0] == 1: 
-                buyOrd = self.buy_bracket(limitprice=self.dataclose+0.1,
+            if self.neuralBuy[0] > 0.6 and self.neuralSell[0] < 0.55: 
+                buyOrd = self.buy_bracket(limitprice=self.dataclose+flat,
                                           price=self.dataclose,
-                                          stopprice=self.dataclose-0.1,
+                                          stopprice=self.dataclose-drop,
                                           size = 300,
                                           valid = 0
                                          )
@@ -536,10 +537,10 @@ while curIter==0 or (startDate.year == 2016) or (endDate.year == 2018 and endDat
 
 
 
-            elif self.neuralSell[0] == 1:
-                sellOrd = self.sell_bracket(limitprice=self.dataclose-0.1,
+            elif self.neuralSell[0] > 0.6 and self.neuralBuy[0] < 0.55:
+                sellOrd = self.sell_bracket(limitprice=self.dataclose-flat,
                               price=self.dataclose,
-                              stopprice=self.dataclose+0.1,
+                              stopprice=self.dataclose+drop,
                               size = 300,
                               valid = 0)
 
