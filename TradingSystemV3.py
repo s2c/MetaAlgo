@@ -30,6 +30,7 @@ from keras.utils import np_utils
 from keras.losses import binary_crossentropy
 from keras.optimizers import SGD,Adam
 from keras.models import load_model
+from pythonLib.layer_utils import AttentionLSTM
 
 import h5py
 
@@ -52,47 +53,29 @@ DATA_DIR = 'data'
 dbString = 'postgresql://s2c:JANver95@localhost:5432/stockdata'
 engine = sqlalchemy.create_engine(dbString) 
 utc = pytz.UTC
-starDate = utc.localize(dt.datetime(2015,1,3))
+starDate = utc.localize(dt.datetime(2014,3,8))
 endDate = utc.localize(dt.datetime(2018,1,20))
 portVals = []
 TransVals = []
-
+startCash = 10000000
+size = 6000
 curIter = 0
 
-while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (endDate.year == 2018 and endDate.month == 1 and endDate.day <= 6) :
-    query = "SELECT * FROM histdata WHERE ticker = 'GMRINFRA' ORDER BY datetime ASC"
+while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (startDate.year == 2015) or (endDate.year == 2018 and endDate.month == 1 and endDate.day <= 6) :
+    query = "SELECT * FROM histdata WHERE ticker = 'JPASSOCIAT' ORDER BY datetime ASC"
     dat = pd.read_sql(query,engine)
 
 
     startDate = starDate + dt.timedelta(days=7*curIter)
-    endDate = startDate +dt.timedelta(days = 7*4*30) # 30 months of Training of training
+    endDate = startDate +dt.timedelta(days = 365*3 + 7*4*6) # 3 years
+    print("backTestStart :")
     backTestStart = endDate
-    backTestEnd = endDate + dt.timedelta(days=7)
+    print(backTestStart)
+    backTestEnd = endDate + dt.timedelta(days=7*1*1)
     res = dat[(dat['datetime'] > startDate) & (dat['datetime'] < endDate)]
     curIter += 1
 
-    # res
-
-
-    # ## Some Helper Functions
-    # 
-    # These functions are more or less general functions that should prove to be fairly useful
-    # 
-    # 
-    # - **ReadData(filename)** : Reads data from Zerodha API historical data files and returns a Pandas DataFrame
-    # - **sycTimeSeries(ts1,ts2)** : Making sure that 2 timeseries are synced to the smaller time series
-    # - **timeseriesLagged(data, lag=60)**: Creates Lagged series.Goes through a series and generates an lag+1  dimensional   pandas DataFrame that has each previous lag timeunit.
-    # - **binarizeTime(resLagged, rate=0.01)** : Binarizes the last column into 1,-1 or 0 depending whether the price increased, decreased or stayed the same from the beginning to the end of the lag period (triggers on changes by magnitutde = rate*current price).
-    # - **findLag(data, targetCorr,suppressed)** :  Finds the right lag given a target correlation.
-
-    # ## Reading some Data and Getting a feel 
-    # 
-    # We use an autocorrelation plot to help us figure out what is an optimal amount of lag. We are really looking for a lag that correlates highly. We go through the lags till we reach the last lag that guarantees 0.97 autocorrelation
-    # 
-    # ## THIS DID NOT WORK AS EXPECTED. REPLACE WITH FALSE NEAREST NEIGHBOUR
-
-    # In[925]:
-
+   
 
     # # Setup Parameters
     dataInit = res # Read the stock price data. This is 1 minute data
@@ -108,10 +91,10 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
     # if lag == 99: #if lag is 99 then we can just use any number above it as autocorrelation is guaranteed.
     #     lag = 120 #nice round 2  hour intervals
     # print(lag)
-    lag = 30 
-    lookahead = 45
-    flat = 0.1
-    drop = 0.1
+    lag = 30  # How far back we should look at
+    lookahead = 15 # How far in the future we are predicting
+    flat = 0.1 # Booked profit
+    drop = 0.1# Stoploss
     series = timeseriesLagged(data,lag + lookahead-1) # Generate the lagged series
 
 
@@ -192,7 +175,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
     # Compute Class weights
     classWeight = class_weight.compute_class_weight('balanced', np.unique(yTrain), yTrain)
     classWeight = dict(enumerate(classWeight))
-    classWeight
+    print(classWeight)
 
 
     # In[12]:
@@ -211,7 +194,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
     # In[13]:
 
 
-    learnRate = 0.5
+    learnRate = 0.1
     batchSize = 300
     totalBatches = (xTrain.shape[0]//batchSize)
     epochs = 5
@@ -229,7 +212,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
     # Keras
     #https://arxiv.org/pdf/1709.05206.pdf LSTM-FCN
     buyModelConv = Sequential()
-    buyModelConv.add(Conv1D(12,kernel_size= 1, strides=1,
+    buyModelConv.add(Conv1D(15,kernel_size= 2, strides=1,
                      input_shape=inputShape,
                      batch_size = None
                        ))
@@ -237,11 +220,11 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
     buyModelConv.add(Activation('relu'))
 
 
-    buyModelConv.add(Conv1D(6, kernel_size= 1, strides=1))
+    buyModelConv.add(Conv1D(30, kernel_size= 2, strides=1))
     buyModelConv.add(BatchNormalization())
     buyModelConv.add(Activation('relu'))
 
-    buyModelConv.add(Conv1D(12,kernel_size= 1, strides=1))
+    buyModelConv.add(Conv1D(15,kernel_size= 2, strides=1))
     buyModelConv.add(BatchNormalization())
     buyModelConv.add(Activation('relu'))
 
@@ -250,9 +233,9 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
     buyConvInput = buyModelConv(im)
      ########################################
     buyModelLSTM = Sequential()
-    buyModelLSTM.add(Permute((2, 1), input_shape=inputShape))
-    buyModelLSTM.add(LSTM(30))
-    buyModelLSTM.add(Dropout(0.5))
+    buyModelLSTM.add(Permute((1, 2), input_shape=inputShape))
+    buyModelLSTM.add(AttentionLSTM(2))
+    buyModelLSTM.add(Dropout(0.8))
     im2 = buyModelLSTM.layers[0].input
     buyLstmInput = buyModelLSTM(im2)
     #############################
@@ -267,7 +250,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
 
     # buyModel.summary()
     buyModel.compile(loss=binary_crossentropy,
-                  optimizer=SGD(lr=learnRate),
+                  optimizer=Adam(lr=learnRate),
                   metrics=['accuracy'])
 
 
@@ -278,7 +261,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
                  y=yTrain, 
                  class_weight=classWeight,
                  validation_data = ([xVal,xVal],yVal),
-                 epochs = 3,
+                 epochs = 5,
                  verbose = 0,
                  batch_size = batchSize   
                   )
@@ -345,12 +328,13 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
     # Compute Class weights
     classWeight = class_weight.compute_class_weight('balanced', np.unique(yTrain), yTrain)
     classWeight = dict(enumerate(classWeight))
+    print(classWeight)
     xTest.shape
     assert xTrain.shape[0] == yTrain.shape[0]
     assert xTest.shape[0] == yTest.shape[0]
     assert xVal.shape[0] == yVal.shape[0]
     yTrain
-    learnRate = 0.5
+    learnRate = 0.1
     batchSize = 300
     totalBatches = (xTrain.shape[0]//batchSize)
     epochs = 5
@@ -368,7 +352,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
     # Keras
     #https://arxiv.org/pdf/1709.05206.pdf LSTM-FCN
     sellModelConv = Sequential()
-    sellModelConv.add(Conv1D(12,kernel_size= 1, strides=1,
+    sellModelConv.add(Conv1D(15,kernel_size= 2, strides=1,
                      input_shape=inputShape,
                      batch_size = None
                        ))
@@ -376,11 +360,11 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
     sellModelConv.add(Activation('relu'))
 
 
-    sellModelConv.add(Conv1D(6, kernel_size= 1, strides=1))
+    sellModelConv.add(Conv1D(30, kernel_size= 2, strides=1))
     sellModelConv.add(BatchNormalization())
     sellModelConv.add(Activation('relu'))
 
-    sellModelConv.add(Conv1D(12,kernel_size= 1, strides=1))
+    sellModelConv.add(Conv1D(15,kernel_size= 2, strides=1))
     sellModelConv.add(BatchNormalization())
     sellModelConv.add(Activation('relu'))
 
@@ -390,9 +374,9 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
     sellConvInput = sellModelConv(im)
      ########################################
     sellModelLSTM = Sequential()
-    sellModelLSTM.add(Permute((2, 1), input_shape=inputShape))
-    sellModelLSTM.add(LSTM(30))
-    sellModelLSTM.add(Dropout(0.5))
+    sellModelLSTM.add(Permute((1, 2), input_shape=inputShape))
+    sellModelLSTM.add(AttentionLSTM(3))
+    sellModelLSTM.add(Dropout(0.8))
     im2 = sellModelLSTM.layers[0].input
     sellLstmInput = sellModelLSTM(im2)
     #############################
@@ -407,7 +391,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
 
     # sellModel.summary()
     sellModel.compile(loss=binary_crossentropy,
-                  optimizer=SGD(lr=learnRate),
+                  optimizer=Adam(lr=learnRate),
                   metrics=['accuracy'])
 
 
@@ -418,7 +402,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
                  y=yTrain, 
                  class_weight=classWeight,
                  validation_data = ([xVal,xVal],yVal),
-                 epochs = 3,
+                 epochs = 5,
                  batch_size = batchSize,  
                  verbose = 0)
 
@@ -524,13 +508,16 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
 
 
         def next(self):
-    #         print(type(self.dataclose))
 
-            if self.neuralBuy[0] > 0.6 and self.neuralSell[0] < 0.55: 
+
+            if self.neuralBuy[0] > 0.6 and self.neuralSell[0] < 0.55:
+                # print(self.neuralBuy[0])
+                # print(self.neuralSell[0])
+
                 buyOrd = self.buy_bracket(limitprice=self.dataclose+flat,
                                           price=self.dataclose,
                                           stopprice=self.dataclose-drop,
-                                          size = 300,
+                                          size = 60000,
                                           valid = 0
                                          )
 
@@ -538,10 +525,12 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
 
 
             elif self.neuralSell[0] > 0.6 and self.neuralBuy[0] < 0.55:
+                # print(self.neuralBuy[0])
+                # print(self.neuralSell[0])
                 sellOrd = self.sell_bracket(limitprice=self.dataclose-flat,
                               price=self.dataclose,
                               stopprice=self.dataclose+drop,
-                              size = 300,
+                              size = 60000,
                               valid = 0)
 
 
@@ -570,7 +559,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
     # In[950]:
 
 
-    fed = bt.feeds.GenericCSVData(dataname='data/GMRINFRA.csv',
+    fed = bt.feeds.GenericCSVData(dataname='data/JPASSOCIAT.csv',
                                   dtformat="%Y-%m-%dT%H:%M:%S%z",
                                   openinterest=-1,
                                   headers=False,
@@ -583,6 +572,8 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
     # brokerageCom = ((0.0001 +0.0000325)*0.18) + (0.0001 +0.0000325) + 0.00025
     # print(brokerageCom)
     cerebro = bt.Cerebro()
+    cerebro.broker.set_shortcash(False)
+    cerebro.broker.setcash(startCash)
     cerebro.broker.setcommission(commission=0.000425  ,margin = False)
     cerebro.adddata(fed) 
     cerebro.addstrategy(TestStrategy,plot=False)
@@ -599,12 +590,16 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2015) or (end
     thestrat = thestrats[0]
 
     print('returns:', thestrat.analyzers.Transactions.get_analysis())
-    printTradeAnalysis(thestrat.analyzers.ta.get_analysis())
+  
 
     try:
-        print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+        printTradeAnalysis(thestrat.analyzers.ta.get_analysis())
+
     except:
         print ("No trades!")
+    
+    print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+    startCash = cerebro.broker.getvalue()
     cerebro.plot(start=backTestStart , end=backTestEnd,plotter = Plotter())
     if (cerebro.broker.getvalue() < 9000):
         portVals.append(9000)

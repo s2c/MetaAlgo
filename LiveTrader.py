@@ -12,7 +12,7 @@ import numpy as np
 import json
 import paho.mqtt.client as mqtt
 import sklearn.preprocessing as skp
-from keras.models import load_model
+from keras.models import load_model						
 
 
 # In[2]:
@@ -39,6 +39,7 @@ except Exception as e:
                    
 print(user["user_id"], "has logged in")
 
+# sleep(60*15)
 
 # In[3]:
 
@@ -73,8 +74,8 @@ def updateLastPrice():
 
 
 # To start off build the first 30 minutes of history
-print("Building first 30 minute history")
-for i in range(0,30):
+print("Building first lag minute history")
+for i in range(0,lag):
     sleep(60) # sleep for 60 seconds so we get the price after a minute 
     updateLastPrice()
     x = json.loads(lastPrice.payload.decode('utf-8'))
@@ -100,20 +101,20 @@ def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
     buyProb = bMod.predict([histScaled,histScaled])[0][0] 
     sellProb = sMod.predict([histScaled,histScaled])[0][0]
     print("BuyProb = %.2f Sellprob = %.2f" % (buyProb,sellProb))
-    if buyProb > 0.6 and sellProb < 0.55: # if buy probability is greater than 0.6
+    if buyProb > 0.52 and sellProb < 0.5: # if buy probability is greater than 0.6
         print("Buyprob greater than 0.6 at %.2f" % buyProb)
         print("Buying")
-        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],600) # place a buy order
+        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],60000) # place a buy order
         # orderId = sellOrd(kiteClimtSymbol,hist[-1]+0.1,300)
         # while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
         #     sleep(1)
         #     waitT += 1
         # if kite.orders(orderID)[-1]['status'] =="COMPLETE" : # when completed
         #     print("Bracket Buy Placed successfully")     
-    elif sellProb > 0.6 and buyProb < 0.55:
+    elif sellProb > 0.52 and buyProb < 0.5:
         print ("Sellprob greater than 0.6 at %.2f" % sellProb)
         print("Selling  ")
-        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],600) # place a sell order
+        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],60000) # place a sell order
         # orderId = buyOrd(kiteClimtSymbol,hist[-1]-0.1,300)
         # while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
         #     sleep(1)
@@ -140,9 +141,10 @@ def buyOrd(kiteCli,tSymbol,price,quant):
                                     order_type = "LIMIT",
                                     price = price,
                                     squareoff_value = 0.1,
-                                    stoploss_value =  1,
+                                    stoploss_value =  0.1,
                                     variety = "bo",
-                                    validity = "DAY")
+                                    validity = "DAY",
+                                    disclosed_quantity = int(quant/10))
     return order
 
 def sellOrd(kiteCli,tSymbol,price,quant):
@@ -153,10 +155,11 @@ def sellOrd(kiteCli,tSymbol,price,quant):
                                     product = "MIS",
                                     order_type = "LIMIT",
                                     squareoff_value = 0.1,
-                                    stoploss_value = 1,
+                                    stoploss_value = 0.1,
                                     variety = "bo",
                                     price = price,
-                                    validity = "DAY")
+                                    validity = "DAY",
+                                    disclosed_quantity = int(quant/10))
     return order
 
 

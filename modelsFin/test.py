@@ -101,7 +101,7 @@ class TestStrategy(bt.Strategy):
         if self.neuralBuy[0] == 1: 
             buyOrd = self.buy_bracket(limitprice=self.dataclose+0.1,
                                       price=self.dataclose,
-                                      stopprice=self.dataclose-0.1,
+                                      stopprice=self.dataclose-1,
                                       size = 200,
                                       valid = 0
                                      )
@@ -112,7 +112,7 @@ class TestStrategy(bt.Strategy):
         elif self.neuralSell[0] == 1:
             sellOrd = self.sell_bracket(limitprice=self.dataclose-0.1,
                           price=self.dataclose,
-                          stopprice=self.dataclose+0.1,
+                          stopprice=self.dataclose+1,
                           size = 200,
                           valid = 0)
 
