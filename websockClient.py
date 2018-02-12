@@ -31,10 +31,10 @@ def on_tick(tick, ws):
 # Callback for successful connection.
 def on_connect(ws):
         # Subscribe to a list of instrument_tokens (GMRINFRA).
-        ws.subscribe([3463169])
+        ws.subscribe([2933761])
 
         # Set Suzlon to tick in `full` mode.
-        ws.set_mode(ws.MODE_QUOTE, [3463169])
+        ws.set_mode(ws.MODE_QUOTE, [2933761])
         
     # Assign the callbacks.
 kws.on_tick = on_tick

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	// "regexp"
 	"strings"
 	"time"
 )
@@ -366,6 +367,7 @@ func (k *kiteClient) GetHistorical(duration string, exchangeToken string, from s
 			}
 
 		}
+
 		dataFile.Close()
 		fmt.Printf("FINISHED acquring %s from %s to %s \n", filename[0:len(filename)-4], from, to)
 		<-ch

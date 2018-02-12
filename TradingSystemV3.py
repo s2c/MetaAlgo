@@ -93,8 +93,8 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     # print(lag)
     lag = 30  # How far back we should look at
     lookahead = 15 # How far in the future we are predicting
-    flat = 0.1 # Booked profit
-    drop = 0.1# Stoploss
+    flat = 0.15 # Booked profit
+    drop = 0.2 # Stoploss
     series = timeseriesLagged(data,lag + lookahead-1) # Generate the lagged series
 
 
@@ -510,11 +510,11 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
         def next(self):
 
 
-            if self.neuralBuy[0] > 0.6 and self.neuralSell[0] < 0.55:
+            if self.neuralBuy[0] > 0.6 and self.neuralSell[0] < 0.45:
                 # print(self.neuralBuy[0])
                 # print(self.neuralSell[0])
 
-                buyOrd = self.buy_bracket(limitprice=self.dataclose+flat,
+                buyOrd = self.buy_bracket(limitprice=self.dataclose+flat -0.05,
                                           price=self.dataclose,
                                           stopprice=self.dataclose-drop,
                                           size = 60000,
@@ -524,10 +524,10 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
 
 
 
-            elif self.neuralSell[0] > 0.6 and self.neuralBuy[0] < 0.55:
+            elif self.neuralSell[0] > 0.6 and self.neuralBuy[0] < 0.45:
                 # print(self.neuralBuy[0])
                 # print(self.neuralSell[0])
-                sellOrd = self.sell_bracket(limitprice=self.dataclose-flat,
+                sellOrd = self.sell_bracket(limitprice=self.dataclose-flat +0.05,
                               price=self.dataclose,
                               stopprice=self.dataclose+drop,
                               size = 60000,

@@ -59,6 +59,7 @@ func FormatData(data string) []byte {
 	dat := strings.Replace(string(data), "[", "", -1)
 	dat = strings.Replace(dat, "]", "", -1)
 	dat = strings.Replace(dat, "\"", "", -1)
+	// dat = strings.Replace(dat, "\n\n", "\n", -1)
 	return ReplaceNth([]byte(dat), ',', '\n', 6)
 
 }

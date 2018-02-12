@@ -1,17 +1,19 @@
 package main
 
 import (
+	// "encoding/hex"
 	"fmt"
 	// "io/ioutil"
 	// "kite-go/helper"
 	"kite-go/kiteGo"
 	// "strings"
 	//"flag"
-	// "os"
+	"os"
 	// "sync"
-	// "bufio"
-	// "encoding/csv"
+	"bufio"
+	"encoding/csv"
 	// "io"
+	"log"
 )
 
 const (
@@ -30,6 +32,18 @@ const (
 	CONFIG_FILE  string = "config.json"
 )
 
+func find(records [][]string, val string, col int) string {
+	var blank string
+	for _, row := range records {
+		if row[col] == val && row[11] == "NSE" {
+			// fmt.Println(i)
+			return row[0]
+		}
+	}
+	return blank
+	// return empty []byte
+}
+
 func main() {
 	// os.RemoveAll("data/.csv")
 	// os.MkdirAll("data/", 0777)
@@ -40,29 +54,33 @@ func main() {
 	fmt.Println("Starting Client")
 	client := kiteGo.KiteClient(CONFIG_FILE)
 	// f, _ := os.Open("instruments.txt")
-	FROM := "2008-01-05"
-	TO := "2018-02-04"
 
-	// instruments := csv.NewReader(bufio.NewReader(f))
-	// for {
-	// 	record, err := instruments.Read()
-	// 	if err == io.EOF {
-	// 		break
-	// 	}
-	// 	exchangeToken := record[0]
-	// 	fname := record[2]
-	// 	// tickSize := record[7]
-	// 	segment := record[11]
-	// 	// fmt.Println(fname + " " + exchangeToken + " " + tickSize + " " + segment)
-	// 	//fmt.Println(tickSize == "1")
-	// 	if segment == "NSE" || segment == "BSE" {
-	// 		fmt.Printf("ADDED %s to QUEUE \n", (fname))
-	// 		go client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool)
-	// 	}
-	// }
-	exchangeToken := "2933761"
-	fname := "JPASSOCIAT"
-	client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool)
+	instList, _ := os.Open("instruments.csv")
+	records, err := csv.NewReader(bufio.NewReader(instList)).ReadAll()
+	if err != nil {
+		panic(err)
+	}
+	// fmt.Printf("%q is at row %v\n", "two", )
+
+	FROM := "2008-01-05"                       // Start of history
+	TO := "2018-02-10"                         // End of history
+	scripFile, err := os.Open("tradeList.txt") //instruments being considered
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	scripList := bufio.NewScanner(scripFile) // instruments being considered
+	for scripList.Scan() {                   // looped through
+		fname := string(scripList.Text())                                                // name of scrip
+		exchangeToken := find(records, scripList.Text(), 2)                              // find the exchange token
+		fmt.Printf("ADDED %s to QUEUE \n", (fname))                                      // print out info
+		go client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool) // get data
+
+	}
+
+	// exchangeToken := "2933761"
+	// fname := "JPASSOCIAT"
+	// client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool)
 
 	fmt.Println("DONE WITH ALL TASKS")
 	var input string

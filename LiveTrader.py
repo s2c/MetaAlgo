@@ -12,18 +12,19 @@ import numpy as np
 import json
 import paho.mqtt.client as mqtt
 import sklearn.preprocessing as skp
-from keras.models import load_model						
+from keras.models import load_model
+from pythonLib.layer_utils import AttentionLSTM						
 
 
 # In[2]:
 
 
 lastPrice = "" # global variable that is updated with the last price every minute
-buyModel = load_model('modelsFin/buyModel.h5') # load the buy model
-sellModel = load_model('modelsFin/sellModel.h5') # load the sell model
+buyModel = load_model('modelsFin/buyModel.h5', custom_objects={'AttentionLSTM': AttentionLSTM}) # load the buy model
+sellModel = load_model('modelsFin/sellModel.h5', custom_objects={'AttentionLSTM': AttentionLSTM})
 lag = int(buyModel.layers[0].input.shape[1]) # get how much lag is being used based on the input to the model
 hist = np.zeros(lag)
-curInstr = 3463169
+curInstr = 2933761
 
 
 vals = json.load(open('config.json'))
@@ -101,20 +102,20 @@ def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
     buyProb = bMod.predict([histScaled,histScaled])[0][0] 
     sellProb = sMod.predict([histScaled,histScaled])[0][0]
     print("BuyProb = %.2f Sellprob = %.2f" % (buyProb,sellProb))
-    if buyProb > 0.52 and sellProb < 0.5: # if buy probability is greater than 0.6
+    if buyProb > 0.6 and sellProb < 0.45: # if buy probability is greater than 0.6
         print("Buyprob greater than 0.6 at %.2f" % buyProb)
         print("Buying")
-        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],60000) # place a buy order
+        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],30000) # place a buy order
         # orderId = sellOrd(kiteClimtSymbol,hist[-1]+0.1,300)
         # while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
         #     sleep(1)
         #     waitT += 1
         # if kite.orders(orderID)[-1]['status'] =="COMPLETE" : # when completed
         #     print("Bracket Buy Placed successfully")     
-    elif sellProb > 0.52 and buyProb < 0.5:
+    elif sellProb > 0.6 and buyProb < 0.45:
         print ("Sellprob greater than 0.6 at %.2f" % sellProb)
         print("Selling  ")
-        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],60000) # place a sell order
+        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],30000) # place a sell order
         # orderId = buyOrd(kiteClimtSymbol,hist[-1]-0.1,300)
         # while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
         #     sleep(1)
@@ -141,7 +142,7 @@ def buyOrd(kiteCli,tSymbol,price,quant):
                                     order_type = "LIMIT",
                                     price = price,
                                     squareoff_value = 0.1,
-                                    stoploss_value =  0.1,
+                                    stoploss_value =  0.2,
                                     variety = "bo",
                                     validity = "DAY",
                                     disclosed_quantity = int(quant/10))
@@ -155,7 +156,7 @@ def sellOrd(kiteCli,tSymbol,price,quant):
                                     product = "MIS",
                                     order_type = "LIMIT",
                                     squareoff_value = 0.1,
-                                    stoploss_value = 0.1,
+                                    stoploss_value = 0.2,
                                     variety = "bo",
                                     price = price,
                                     validity = "DAY",
