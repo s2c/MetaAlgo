@@ -57,12 +57,12 @@ starDate = utc.localize(dt.datetime(2014,3,8))
 endDate = utc.localize(dt.datetime(2018,1,20))
 portVals = []
 TransVals = []
-startCash = 10000000
+startCash = 1000000
 size = 6000
 curIter = 0
 
 while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (startDate.year == 2015) or (endDate.year == 2018 and endDate.month == 1 and endDate.day <= 6) :
-    query = "SELECT * FROM histdata WHERE ticker = 'JPASSOCIAT' ORDER BY datetime ASC"
+    query = "SELECT * FROM histdata WHERE ticker = 'GMRINFRA' ORDER BY datetime ASC"
     dat = pd.read_sql(query,engine)
 
 
@@ -194,7 +194,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     # In[13]:
 
 
-    learnRate = 0.1
+    learnRate = 0.05
     batchSize = 300
     totalBatches = (xTrain.shape[0]//batchSize)
     epochs = 5
@@ -334,7 +334,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     assert xTest.shape[0] == yTest.shape[0]
     assert xVal.shape[0] == yVal.shape[0]
     yTrain
-    learnRate = 0.1
+    learnRate = 0.05
     batchSize = 300
     totalBatches = (xTrain.shape[0]//batchSize)
     epochs = 5
@@ -517,7 +517,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
                 buyOrd = self.buy_bracket(limitprice=self.dataclose+flat -0.05,
                                           price=self.dataclose,
                                           stopprice=self.dataclose-drop,
-                                          size = 60000,
+                                          size = 30000,
                                           valid = 0
                                          )
 
@@ -530,7 +530,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
                 sellOrd = self.sell_bracket(limitprice=self.dataclose-flat +0.05,
                               price=self.dataclose,
                               stopprice=self.dataclose+drop,
-                              size = 60000,
+                              size = 30000,
                               valid = 0)
 
 
@@ -559,7 +559,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     # In[950]:
 
 
-    fed = bt.feeds.GenericCSVData(dataname='data/JPASSOCIAT.csv',
+    fed = bt.feeds.GenericCSVData(dataname='data/GMRINFRA.csv',
                                   dtformat="%Y-%m-%dT%H:%M:%S%z",
                                   openinterest=-1,
                                   headers=False,

@@ -5,9 +5,23 @@ import scipy
 import matplotlib.pyplot as plt
 from helper import *
 
+
+
+# Returns the instrument token given a trading symbol [IN NSE] from the instruments.csv
+# Input: stockName (trading symbol) , instFile(Zerodha instruments list) 
+# Return: integer instrument token
+
+def findInstToken(stockName, instFile):
+    inst =  pd.read_csv(instFile) # read the file
+    tokenCrit = inst['segment'] == "NSE" # filter out only nse
+    actStock = inst['tradingsymbol'] == stockName  #filter out the trading symbol
+
+    return int(inst[tokenCrit & actStock]['instrument_token'].values[0]) #return
+
 # Reads data from Zerodha API historical data files and returns a Pandas DataFrame
 # Input: Zerodha Api CSV file
 # Return: Pandas Dataframe of CSV file with correct timezone
+
 def readData(filename):
     convertfunc = lambda x: (pd.to_datetime(x,utc=True)).tz_convert('Asia/Kolkata')
     return pd.read_csv(filename,

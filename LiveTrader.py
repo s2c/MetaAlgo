@@ -12,23 +12,42 @@ import numpy as np
 import json
 import paho.mqtt.client as mqtt
 import sklearn.preprocessing as skp
+from helper import *
 from keras.models import load_model
-from pythonLib.layer_utils import AttentionLSTM						
+from pythonLib.layer_utils import AttentionLSTM
+from pythonLib.helper import *						
+
+
+
+
 
 
 # In[2]:
+instFile = "instruments.csv" # location of the instrument list for current instruments
+curInstList = "tradeList.txt" # location of all instruments currently being traded 
+stockList = [] # list
+with open (curInstList) as f: #populate list of all current stocks
+    for each_csv in f:
+        each_csv = each_csv.rstrip('\n') # read csv
+        curTicker = each_csv # store ticker
+        stockList.append(curTicker)
 
+curStock = stockList[0] # get first stock
 
 lastPrice = "" # global variable that is updated with the last price every minute
-buyModel = load_model('modelsFin/buyModel.h5', custom_objects={'AttentionLSTM': AttentionLSTM}) # load the buy model
-sellModel = load_model('modelsFin/sellModel.h5', custom_objects={'AttentionLSTM': AttentionLSTM})
+
+
+buyModel = load_model('modelsFin/%sbuyModel.h5' % curStock, custom_objects={'AttentionLSTM': AttentionLSTM}) # load the buy model
+sellModel = load_model('modelsFin/%ssellModel.h5' % curStock, custom_objects={'AttentionLSTM': AttentionLSTM})
 lag = int(buyModel.layers[0].input.shape[1]) # get how much lag is being used based on the input to the model
 hist = np.zeros(lag)
-curInstr = 2933761
+curInstr = findInstToken(curStock, instFile)
+print(curInstr)
+# print(buyModel,sellModel)
 
 
-vals = json.load(open('config.json'))
-kite = KiteConnect(api_key=vals['API_KEY'])
+vals = json.load(open('config.json')) # read the config
+kite = KiteConnect(api_key=vals['API_KEY']) # 
                    
 try:
     user = kite.request_access_token(request_token=vals['REQ_TOKEN'],
@@ -38,7 +57,7 @@ except Exception as e:
     print("Authentication failed", str(e))
     raise
                    
-print(user["user_id"], "has logged in")
+print(user["user_id"], "has logged in") # connected to API
 
 # sleep(60*15)
 
@@ -105,7 +124,7 @@ def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
     if buyProb > 0.6 and sellProb < 0.45: # if buy probability is greater than 0.6
         print("Buyprob greater than 0.6 at %.2f" % buyProb)
         print("Buying")
-        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],30000) # place a buy order
+        orderId =  buyOrd(kiteCli,tSymbol,hist[-1],15000) # place a buy order
         # orderId = sellOrd(kiteClimtSymbol,hist[-1]+0.1,300)
         # while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
         #     sleep(1)
@@ -115,7 +134,7 @@ def placeOrder(kiteCli,hist,bMod,sMod,tSymbol):
     elif sellProb > 0.6 and buyProb < 0.45:
         print ("Sellprob greater than 0.6 at %.2f" % sellProb)
         print("Selling  ")
-        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],30000) # place a sell order
+        orderId =  sellOrd(kiteCli,tSymbol,hist[-1],15000) # place a sell order
         # orderId = buyOrd(kiteClimtSymbol,hist[-1]-0.1,300)
         # while ((kite.orders(orderId)[-1]['status']) != "COMPLETE") and waitT < 30: # wait upto 30 seconds
         #     sleep(1)
