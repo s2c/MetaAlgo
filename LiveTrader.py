@@ -98,13 +98,13 @@ def updateHistories(historiesPrices,historiesVols,stockList,curVol,kite):
 def buyOrd(kiteCli,tSymbol,price,quant,sqVal,stpVal):
     order = kiteCli.order_place(tradingsymbol = tSymbol,
                                     exchange = "NSE",
-                                    quantity = quant,
+                                    quantity = int(quant),
                                     transaction_type = "BUY",
                                     product = "MIS",
                                     order_type = "LIMIT",
-                                    price = price,
-                                    squareoff_value = sqVal,
-                                    stoploss_value =  stpVal,
+                                    price = float(price),
+                                    squareoff_value = float(sqVal),
+                                    stoploss_value =  float(stpVal),
                                     variety = "bo",
                                     validity = "DAY",
                                     disclosed_quantity = int(quant/10))
@@ -113,14 +113,14 @@ def buyOrd(kiteCli,tSymbol,price,quant,sqVal,stpVal):
 def sellOrd(kiteCli,tSymbol,price,quant,sqVal,stpVal):
     order = kiteCli.order_place(tradingsymbol = tSymbol,
                                     exchange = "NSE",
-                                    quantity = quant,
+                                    quantity = int(quant),
                                     transaction_type = "SELL",
                                     product = "MIS",
                                     order_type = "LIMIT",
-                                    squareoff_value = sqVal,
-                                    stoploss_value = stpVal,
+                                    squareoff_value = float(sqVal),
+                                    stoploss_value = float(stpVal),
                                     variety = "bo",
-                                    price = price,
+                                    price = float(price),
                                     validity = "DAY",
                                     disclosed_quantity = int(quant/10))
     return order
@@ -160,7 +160,7 @@ def placeOrder(kiteCli,historiesPrices,historiesVols,bMod,sMod,curStock,lag,spre
 
 
 
-while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 15: # Last order goes in at 2 PM
+while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 16: # Last order goes in at 2 PM
     spreadList = pd.read_csv(spreadsFile,header=None).values # Maybe not needed every minute, we'll see
     for i,curStock in enumerate(stockList):
         print(curStock)
