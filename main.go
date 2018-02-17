@@ -63,7 +63,7 @@ func main() {
 	// fmt.Printf("%q is at row %v\n", "two", )
 
 	FROM := "2008-01-05"                       // Start of history
-	TO := "2018-02-10"                         // End of history
+	TO := "2018-02-18"                         // End of history
 	scripFile, err := os.Open("tradeList.txt") //instruments being considered
 	if err != nil {
 		log.Fatal(err)
