@@ -157,8 +157,8 @@ def placeOrder(kiteCli,historiesPrices,historiesVols,bMod,sMod,curStock,lag,spre
     lag = lag of stock
     spreads = list of [sqVal,stpVal,quant]
     """
-    close = skp.scale(historiesPrices)
-    vols = skp.scale(historiesVols)
+    close = skp.minmax_scale(historiesPrices)
+    vols = skp.minmax_scale(historiesVols)
     data = np.zeros((1,lag,2))
     data[0,:,0] = close
     data[0,:,1] = vols
@@ -180,7 +180,7 @@ def placeOrder(kiteCli,historiesPrices,historiesVols,bMod,sMod,curStock,lag,spre
     elif sellProb > sHigh and buyProb < sLow:
         print("SellProb greater than %.2f at %.2f and Buyprob less than %.2f at %.2f" % (sHigh,sellProb,sLow,buyProb))
         print("Selling  ")
-        orderId =  sellOrd(kiteCli,curStock,hist[-1],sqVal,stpVal,quant) # place a sell order
+        orderId =  sellOrd(kiteCli,curStock,historiesPrices[-1],sqVal,stpVal,quant) # place a sell order
     else:
         print("No probabilities greater than thresholds, skipping")
     
@@ -188,7 +188,7 @@ def placeOrder(kiteCli,historiesPrices,historiesVols,bMod,sMod,curStock,lag,spre
 
 
 
-while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 16: # Last order goes in at 2 PM
+while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 15: # Last order goes in at 2 PM
     spreadList = pd.read_csv(spreadsFile,header=None).values # Maybe not needed every minute, we'll see
     for i,curStock in enumerate(stockList):
         print(curStock)
@@ -199,3 +199,4 @@ while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 16: # Last orde
     t = updateHistories(historiesPrices,historiesVols,stockList,curVol,kite)
     sleep(57-t) # sleep for 60 - whatever time w was running for seconds
 
+print("TRADING DAY IS OVER!")
