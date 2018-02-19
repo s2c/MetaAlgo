@@ -14,7 +14,7 @@ from pythonLib.helper import *
 # Log in to Kite
 vals = json.load(open('config.json')) # read the config
 kite = KiteConnect(api_key=vals['API_KEY']) # 
-                   
+print("Here")              
 try:
     user = kite.request_access_token(request_token=vals['REQ_TOKEN'],
                                             secret=vals['API_SECRET'])
@@ -38,9 +38,9 @@ with open (curInstList) as f: #populate list of all current stocks
         curTicker = each_csv # store ticker
         stockList.append(curTicker)
         i+=1
-        if i > 1: # first 2 stocks for now
+        if i > 2: # first 3 stocks for now
             break
-
+print("Here")
 buyModels = [] # list of buy models
 sellModels = [] # list of sell Models
 instTokens = [] # All the instrument tokens
@@ -65,36 +65,60 @@ for i,curStock in enumerate(stockList):
 curVol = np.zeros(len(curStock))
 # build basic history
 for t in range(0,max(lags) + 1):
-    for i,curStock in enumerate(stockList):     # dont put anything in the first time round cause
-                                                # we need to calculate minute volume manually
-        if t == 0:
-            quote = kite.quote(exchange="NSE",tradingsymbol= curStock )
-#             print(quote['volume'])
-            curVol[i] = quote['volume']
-        elif t > lags[i] + 1: # skip this one if it doesnt need any more history
-            continue
-        else: # build history like regular
-            quote = kite.quote(exchange="NSE",tradingsymbol= curStock )
-            newVol = quote['volume'] - curVol[i] # calculate the new volume
-            curVol[i] = quote['volume'] # curVol is now the volume retrieved
-            curClose = quote['last_price']
-            historiesPrices[i][t-1] = curClose
-            historiesVols[i][t-1] = newVol
+    tot = 0 # total time spent
+    for i,curStock in enumerate(stockList):
+        rt = 0     
+        while rt < 5: # 5 retries   
+            try:
+                if t == 0:  # dont put anything in the first time round cause we are calculating volume manually
+                    quote = kite.quote(exchange="NSE",tradingsymbol= curStock )
+        #             print(quote['volume'])
+                    curVol[i] = quote['volume']
+                elif t > lags[i] + 1: # skip this one if it doesnt need any more history
+                    continue
+                else: # build history like regular
+                    quote = kite.quote(exchange="NSE",tradingsymbol= curStock )
+                    newVol = quote['volume'] - curVol[i] # calculate the new volume
+                    curVol[i] = quote['volume'] # curVol is now the volume retrieved
+                    curClose = quote['last_price']
+                    historiesPrices[i][t-1] = curClose
+                    historiesVols[i][t-1] = newVol
+            except :
+                print("RETRYING")
+                sleep(1) 
+                rt += 1
+                continue
+            tot += rt
+            break
+        sleep(1)                             
     print("min %d Done" % (t))  
-    sleep(60)
+    sleep(57-tot)
 historiesPrices = np.array(historiesPrices)
 historiesVols = np.array(historiesVols)
 
 def updateHistories(historiesPrices,historiesVols,stockList,curVol,kite):
+    tot = 0
     for i,curStock in enumerate(stockList):
-        quote = kite.quote(exchange="NSE",tradingsymbol= curStock )
-        newVol = quote['volume'] - curVol[i] # calculate the new volume
-        curVol[i] = quote['volume'] # curVol is now the volume retrieved
-        curClose = quote['last_price']
-        historiesPrices[i][0] = curClose
-        historiesVols[i][0] = newVol
-        historiesPrices[i] = np.roll(historiesPrices[i],-1)
-        historiesVols[i] = np.roll(historiesVols[i],-1)
+        rt = 0 
+        while rt < 5:
+            try:
+                quote = kite.quote(exchange="NSE",tradingsymbol= curStock )
+                newVol = quote['volume'] - curVol[i] # calculate the new volume
+                curVol[i] = quote['volume'] # curVol is now the volume retrieved
+                curClose = quote['last_price']
+                historiesPrices[i][0] = curClose
+                historiesVols[i][0] = newVol
+                historiesPrices[i] = np.roll(historiesPrices[i],-1)
+                historiesVols[i] = np.roll(historiesVols[i],-1)
+                sleep(1)
+            except:
+                sleep(1)
+                rt += 1
+                continue
+            break
+        tot += rt
+    return tot
+
 def buyOrd(kiteCli,tSymbol,price,sqVal,stpVal,quant):
     order = kiteCli.order_place(tradingsymbol = tSymbol,
                                     exchange = "NSE",
@@ -172,6 +196,6 @@ while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 16: # Last orde
         print(historiesVols[i])
         placeOrder(kite,historiesPrices[i],historiesVols[i],
                    buyModels[i],sellModels[i],curStock,lags[i],spreadList[i])
-    updateHistories(historiesPrices,historiesVols,stockList,curVol,kite)
-    sleep(60) # sleep for 60 - whatever time w was running for seconds
+    t = updateHistories(historiesPrices,historiesVols,stockList,curVol,kite)
+    sleep(57-t) # sleep for 60 - whatever time w was running for seconds
 
