@@ -37,21 +37,20 @@ def readData(filename):
 # Input: TimeSeries 1, TimeSeries 2
 # Output: synced TimeSeries
 def sycTimeSeries(ts1,ts2):
-    # If TS1 is not bigger, then make TS1 the bigger one and TS2 the smaller one.
-    flipped = 0
-    if len(ts2) > len(ts1):
-        flipped = 1
-        ts1,ts2 = ts2,ts1
-    for dt in ts1["DateTime"].values:
+    for dt in ts1["DateTime"].values: # clean ts1
         if dt in ts2['DateTime'].values:
             continue
         else:
             #print(dt)
             ts1.drop(ts1[ts1["DateTime"]==dt].index,inplace = True)
-    if flipped:
-        return ts2, ts1.reset_index(drop = True)
-    else:
-        return ts1.reset_index(drop = True), ts2
+    for dt in ts2["DateTime"].values: # clean ts2
+        if dt in ts1['DateTime'].values:
+            continue
+        else:
+            #print(dt)
+            ts2.drop(ts1[ts1["DateTime"]==dt].index,inplace = True)
+
+    return ts1.reset_index(drop = True), ts2.reset_index(drop = True)
     
 
 #Creates Lagged series

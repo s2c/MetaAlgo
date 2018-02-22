@@ -11,14 +11,14 @@ from keras.models import load_model
 from pythonLib.layer_utils import AttentionLSTM
 from pythonLib.helper import *
 
+
 # Log in to Kite
 vals = json.load(open('config.json')) # read the config
-kite = KiteConnect(api_key=vals['API_KEY']) # 
+kite = KiteConnect(api_key=vals['API_KEY']) #
+
 print("Here")              
 try:
-    user = kite.request_access_token(request_token=vals['REQ_TOKEN'],
-                                            secret=vals['API_SECRET'])
-    kite.set_access_token(user["access_token"])
+    user = kite.generate_session(vals['REQ_TOKEN'], api_secret=vals['API_SECRET'])
 except Exception as e:
     print("Authentication failed", str(e))
     raise
@@ -61,95 +61,42 @@ for i,curStock in enumerate(stockList):
     lags.append(currLag)
     historiesPrices.append(np.zeros(currLag))
     historiesVols.append(np.zeros(currLag))
+print(instTokens)
+print(user["user_id"], "has logged in") # connected to API
 
-curVol = np.zeros(len(curStock))
-# build basic history
-for t in range(0,max(lags) + 1):
-    tot = 0 # total time spent
-    for i,curStock in enumerate(stockList):
-        rt = 0     
-        while rt < 5: # 5 retries   
-            try:
-                if t == 0:  # dont put anything in the first time round cause we are calculating volume manually
-                    quote = kite.quote(exchange="NSE",tradingsymbol= curStock )
-        #             print(quote['volume'])
-                    curVol[i] = quote['volume']
-                elif t > lags[i] + 1: # skip this one if it doesnt need any more history
-                    continue
-                else: # build history like regular
-                    quote = kite.quote(exchange="NSE",tradingsymbol= curStock )
-                    newVol = quote['volume'] - curVol[i] # calculate the new volume
-                    curVol[i] = quote['volume'] # curVol is now the volume retrieved
-                    curClose = quote['last_price']
-                    historiesPrices[i][t-1] = curClose
-                    historiesVols[i][t-1] = newVol
-            except :
-                print("RETRYING")
-                sleep(1) 
-                rt += 1
-                continue
-            tot += rt
-            break
-        sleep(1)                             
-    print("min %d Done" % (t))  
-    sleep(57-tot)
-historiesPrices = np.array(historiesPrices)
-historiesVols = np.array(historiesVols)
 
-def updateHistories(historiesPrices,historiesVols,stockList,curVol,kite):
-    tot = 0
-    for i,curStock in enumerate(stockList):
-        rt = 0 
-        while rt < 5:
-            try:
-                quote = kite.quote(exchange="NSE",tradingsymbol= curStock )
-                newVol = quote['volume'] - curVol[i] # calculate the new volume
-                curVol[i] = quote['volume'] # curVol is now the volume retrieved
-                curClose = quote['last_price']
-                historiesPrices[i][0] = curClose
-                historiesVols[i][0] = newVol
-                historiesPrices[i] = np.roll(historiesPrices[i],-1)
-                historiesVols[i] = np.roll(historiesVols[i],-1)
-                sleep(1)
-            except:
-                sleep(1)
-                rt += 1
-                continue
-            break
-        tot += rt
-    return tot
 
 def buyOrd(kiteCli,tSymbol,price,sqVal,stpVal,quant):
-    order = kiteCli.order_place(tradingsymbol = tSymbol,
-                                    exchange = "NSE",
+    order = kiteCli.place_order(tradingsymbol = tSymbol,
+                                    exchange = kite.EXCHANGE_NSE,
                                     quantity = int(quant),
-                                    transaction_type = "BUY",
-                                    product = "MIS",
-                                    order_type = "LIMIT",
+                                    transaction_type = kite.TRANSACTION_TYPE_BUY,
+                                    product = kite.PRODUCT_MIS,
+                                    order_type =  kite.ORDER_TYPE_LIMIT,
                                     price = float(price),
-                                    squareoff_value = float(sqVal),
-                                    stoploss_value =  float(stpVal),
-                                    variety = "bo",
-                                    validity = "DAY",
+                                    squareoff = sqVal,
+                                    stoploss =  stpVal,
+                                    variety = kite.VARIETY_BO,
+                                    validity = kite.VALIDITY_DAY,
                                     disclosed_quantity = int(quant/10))
     return order
 
 def sellOrd(kiteCli,tSymbol,price,sqVal,stpVal,quant):
-    order = kiteCli.order_place(tradingsymbol = tSymbol,
-                                    exchange = "NSE",
+    order = kiteCli.place_order(tradingsymbol = tSymbol,
+                                    exchange = kite.EXCHANGE_NSE,
                                     quantity = int(quant),
-                                    transaction_type = "SELL",
-                                    product = "MIS",
-                                    order_type = "LIMIT",
-                                    squareoff_value = float(sqVal),
-                                    stoploss_value = float(stpVal),
-                                    variety = "bo",
+                                    transaction_type = kite.TRANSACTION_TYPE_SELL,
+                                    product = kite.PRODUCT_MIS,
+                                    order_type = kite.ORDER_TYPE_LIMIT,
+                                    squareoff = sqVal,
+                                    stoploss = stpVal,
+                                    variety = kite.VARIETY_BO,
                                     price = float(price),
-                                    validity = "DAY",
+                                    validity = kite.VALIDITY_DAY,
                                     disclosed_quantity = int(quant/10))
     return order
 
-def placeOrder(kiteCli,historiesPrices,historiesVols,bMod,sMod,curStock,lag,spreads):
+def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
     """kiteCli = kite client
     historiesPrices = price history
     historiesVols = volume history
@@ -157,6 +104,16 @@ def placeOrder(kiteCli,historiesPrices,historiesVols,bMod,sMod,curStock,lag,spre
     lag = lag of stock
     spreads = list of [sqVal,stpVal,quant]
     """
+    history = kiteCli.historical_data(instToken, 
+                                      str(dt.datetime.now().date() - dt.timedelta(days=1)),
+                                      str(dt.datetime.now().date() + dt.timedelta(days=1)), "minute", continuous=False)
+
+    curr = history[-45:]
+    historiesPrices = np.array([x['close'] for x in curr])
+    historiesVols = np.array([x['volume'] for x in curr] )
+    print(dt.datetime.now())
+    print(historiesPrices)
+    print(historiesVols)
     close = skp.minmax_scale(historiesPrices)
     vols = skp.minmax_scale(historiesVols)
     data = np.zeros((1,lag,2))
@@ -164,9 +121,11 @@ def placeOrder(kiteCli,historiesPrices,historiesVols,bMod,sMod,curStock,lag,spre
     data[0,:,1] = vols
     buyProb = bMod.predict([data,data])[0][0] 
     sellProb = sMod.predict([data,data])[0][0]
+    # print(spreads)
     sqVal = spreads[0]
     stpVal = spreads[1]
     quant = spreads[2]
+    print(quant)
     bHigh = spreads[3]
     bLow = spreads[4]
     sHigh = spreads[5]
@@ -183,20 +142,20 @@ def placeOrder(kiteCli,historiesPrices,historiesVols,bMod,sMod,curStock,lag,spre
         orderId =  sellOrd(kiteCli,curStock,historiesPrices[-1],sqVal,stpVal,quant) # place a sell order
     else:
         print("No probabilities greater than thresholds, skipping")
-    
-#     return waitT
+    sleep(1)
+    return
 
 
 
 while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 15: # Last order goes in at 2 PM
     spreadList = pd.read_csv(spreadsFile,header=None).values # Maybe not needed every minute, we'll see
+    t = dt.datetime.now()
+    sleeptime = 60 - (t.second)
+    sleep(sleeptime)
     for i,curStock in enumerate(stockList):
         print(curStock)
-        print(historiesPrices[i])
-        print(historiesVols[i])
-        placeOrder(kite,historiesPrices[i],historiesVols[i],
+        h = placeOrder(kite,instTokens[i],
                    buyModels[i],sellModels[i],curStock,lags[i],spreadList[i])
-    t = updateHistories(historiesPrices,historiesVols,stockList,curVol,kite)
-    sleep(57-t) # sleep for 60 - whatever time w was running for seconds
+
 
 print("TRADING DAY IS OVER!")

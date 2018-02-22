@@ -14,6 +14,7 @@ import (
 	"encoding/csv"
 	// "io"
 	"log"
+	// "time"
 )
 
 const (
@@ -53,6 +54,7 @@ func main() {
 	// curl https://api.kite.trade/instruments to retreive master list
 	fmt.Println("Starting Client")
 	client := kiteGo.KiteClient(CONFIG_FILE)
+
 	// f, _ := os.Open("instruments.txt")
 
 	instList, _ := os.Open("instruments.csv")
@@ -62,21 +64,25 @@ func main() {
 	}
 	// fmt.Printf("%q is at row %v\n", "two", )
 
-	FROM := "2008-01-05"                       // Start of history
-	TO := "2018-02-18"                         // End of history
+	FROM := "2018-02-17" //currentDate.Format("2006-01-02") // Start of history
+	TO := "2018-02-23"   //currentDate.Add(time.Hour * 24).Format("2006-01-02") //currentDate.Format("2006-01-02")   // End of history
+
 	scripFile, err := os.Open("tradeList.txt") //instruments being considered
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	scripList := bufio.NewScanner(scripFile) // instruments being considered
-	for scripList.Scan() {                   // looped through
+
+	for scripList.Scan() { // looped through
+		fmt.Println("HERE")
 		fname := string(scripList.Text())                                                // name of scrip
 		exchangeToken := find(records, scripList.Text(), 2)                              // find the exchange token
 		fmt.Printf("ADDED %s to QUEUE \n", (fname))                                      // print out info
 		go client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool) // get data
 
 	}
+	fmt.Println("Waiting")
+	fmt.Println(string(scripList.Text()))
 
 	// exchangeToken := "2933761"
 	// fname := "JPASSOCIAT"
