@@ -149,9 +149,9 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
 
 while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 15: # Last order goes in at 2 PM
     spreadList = pd.read_csv(spreadsFile,header=None).values # Maybe not needed every minute, we'll see
-    t = dt.datetime.now()
+    t = dt.datetime.now(pytz.timezone('Asia/Kolkata'))
     sleeptime = 60 - (t.second)
-    sleep(sleeptime)
+    sleep(sleeptime + 1)
     for i,curStock in enumerate(stockList):
         print(curStock)
         h = placeOrder(kite,instTokens[i],
