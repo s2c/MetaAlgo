@@ -111,7 +111,7 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
     curr = history[-45:]
     historiesPrices = np.array([x['close'] for x in curr])
     historiesVols = np.array([x['volume'] for x in curr] )
-    print(dt.datetime.now())
+    print(dt.datetime.now(pytz.timezone('Asia/Kolkata')))
     print(historiesPrices)
     print(historiesVols)
     close = skp.minmax_scale(historiesPrices)
@@ -130,19 +130,25 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
     bLow = spreads[4]
     sHigh = spreads[5]
     sLow = spreads[6]
-    print("BuyProb = %.2f Sellprob = %.2f" % (buyProb,sellProb))
-    if buyProb > bHigh and sellProb < bLow: # if buy probability is greater than 0.6
-        print("Buyprob greater than %.2f at %.2f and SellProb less than %.2f at %.2f" % (bHigh,buyProb,bLow,sellProb))
-        print("Buying")
-        orderId =  buyOrd(kiteCli,curStock,historiesPrices[-1],sqVal,stpVal,quant) # place a buy order
-
-    elif sellProb > sHigh and buyProb < sLow:
-        print("SellProb greater than %.2f at %.2f and Buyprob less than %.2f at %.2f" % (sHigh,sellProb,sLow,buyProb))
-        print("Selling  ")
-        orderId =  sellOrd(kiteCli,curStock,historiesPrices[-1],sqVal,stpVal,quant) # place a sell order
+    quote = kite.quote(exchange="NSE",tradingsymbol= curStock)
+    curClose = quote['last_price']
+    if np.absolute(curClose - history[-1]['close']) > 0.1 :
+        print("Price differential to great between data and current, skipping analysis")
+        return
     else:
-        print("No probabilities greater than thresholds, skipping")
-    sleep(1)
+        print("BuyProb = %.2f Sellprob = %.2f" % (buyProb,sellProb))
+        if buyProb > bHigh and sellProb < bLow: # if buy probability is greater than 0.6
+            print("Buyprob greater than %.2f at %.2f and SellProb less than %.2f at %.2f" % (bHigh,buyProb,bLow,sellProb))
+            print("Buying")
+            orderId =  buyOrd(kiteCli,curStock,curClose,sqVal,stpVal,quant) # place a buy order
+
+        elif sellProb > sHigh and buyProb < sLow:
+            print("SellProb greater than %.2f at %.2f and Buyprob less than %.2f at %.2f" % (sHigh,sellProb,sLow,buyProb))
+            print("Selling  ")
+            orderId =  sellOrd(kiteCli,curStock,curClose,sqVal,stpVal,quant) # place a sell order
+        else:
+            print("No probabilities greater than thresholds, skipping")
+        sleep(1)
     return
 
 
