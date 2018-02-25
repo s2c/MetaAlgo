@@ -40,26 +40,34 @@ from sklearn.model_selection import KFold
 from sklearn.preprocessing import LabelEncoder
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
+from sklearn.utils import shuffle
 import sklearn.preprocessing as skp
 import tensorflow as tf
 import tempfile
 
 tf.__version__
-
-# fix random seed for reproducibility
-# seed = 7
 DATA_DIR = 'data' 
 # np.random.seed(seed)
 dbString = 'postgresql://s2c:JANver95@localhost:5432/stockdata'
+curInstList = 'tradeList.txt'
 engine = sqlalchemy.create_engine(dbString) 
+stockList = []
+with open (curInstList) as f:
+    for each_csv in f:
+        each_csv = each_csv.rstrip('\n') # read csv
+        curTicker = each_csv # store ticker
+        stockList.append(curTicker)
+cur = 0
+stockList
 utc = pytz.UTC
 starDate = utc.localize(dt.datetime(2014,3,8))
 endDate = utc.localize(dt.datetime(2018,1,20))
 portVals = []
 TransVals = []
 startCash = 1000000
-size = 6000
+size = 15000
 curIter = 0
+drop = 0.1
 
 while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (startDate.year == 2015) or (endDate.year == 2018 and endDate.month == 1 and endDate.day <= 6) :
     query = "SELECT * FROM histdata WHERE ticker = 'GMRINFRA' ORDER BY datetime ASC"
@@ -75,7 +83,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     res = dat[(dat['datetime'] > startDate) & (dat['datetime'] < endDate)]
     curIter += 1
 
-   
+    vol = res['volume']
 
     # # Setup Parameters
     dataInit = res # Read the stock price data. This is 1 minute data
@@ -91,31 +99,70 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     # if lag == 99: #if lag is 99 then we can just use any number above it as autocorrelation is guaranteed.
     #     lag = 120 #nice round 2  hour intervals
     # print(lag)
-    lag = 30  # How far back we should look at
-    lookahead = 15 # How far in the future we are predicting
-    flat = 0.15 # Booked profit
-    drop = 0.2 # Stoploss
+    lag = 45
+    lookahead = 15
+    flat = 0.1
     series = timeseriesLagged(data,lag + lookahead-1) # Generate the lagged series
+    vols = timeseriesLagged(vol,lag + lookahead-1)
+    # res.tail(10)
+
+
+        # generate the series for volumes. We need to drop the last column at some point as it is irrelevant.
+    volsSeries = binarizeTime(vols,0,lookahead = lookahead, flat= flat)
+    volsSeries = volsSeries.drop(str(lag+1),axis=1)
+    #standardize
+    volsSeries = skp.minmax_scale(volsSeries,axis=1)
+    # volsSeries[0,:]
 
 
     # In[926]:
 
 
     # Create binary series where 0 = hold and 1 = buy
+    # Create binary series where 0 = hold and 1 = buy
     buySeries = binarizeTime(series,0,lookahead = lookahead, flat= flat)
     change = buySeries.iloc[:,-1]== -1 # convert to binary
     buySeries.loc[change,str(lag+1)]=0 # convert to binary
+                                       # clean up post binary
+
+    buySeriesLabs = buySeries[str(lag+1)] # labels
+    buySeriesFeats = buySeries.drop(str(lag+1),axis=1) #features
+    buySeriesFeats = buySeriesFeats.values
+    # stanardize
+    buySeriesFeats = skp.minmax_scale(buySeriesFeats,axis=1)
+
+
+    # Convert the data into a suitable format
+
+    buySeries = np.zeros((len(volsSeries),lag,2))
+    buySeries[:,:,0] = buySeriesFeats
+    buySeries[:,:,1] = volsSeries
+    # buySeries[0,:,1]
 
 
     # In[927]:
+ 
 
-
-    # Create binary series where 0 = hold and 1 = sell
+     # Create binary series where 0 = hold and 1 = sell
     sellSeries = binarizeTime(series,0,lookahead=lookahead,flat=flat)
     change = sellSeries.iloc[:,-1]== 1 # find 1s and convert to 0
     sellSeries.loc[change,str(lag+1)]=0 # 
     change = sellSeries.iloc[:,-1]== -1 # find -1 and conver to 1s
     sellSeries.loc[change,str(lag+1)]= 1 # convert to
+                                         # cleanup post binary
+
+    # Convert the data into a suitable format
+    sellSeriesLabs = sellSeries[str(lag+1)]
+    sellSeriesFeats = sellSeries.drop(str(lag+1),axis=1)
+
+
+    # stanardize
+    sellSeriesFeats = skp.minmax_scale(sellSeriesFeats,axis=1)
+
+
+    sellSeries = np.zeros((len(volsSeries),lag,2))
+    sellSeries[:,:,0] = sellSeriesFeats
+    sellSeries[:,:,1] = volsSeries
 
     # # Generate Training Data
     # 
@@ -128,33 +175,23 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     # In[929]:
 
     # Get values from pandas series as we need a numpy array for our classifier
-    BuySeriesVals = buySeries.values
-    np.random.shuffle(BuySeriesVals) #shuffle the entire dataset
-    trainPercent = 0.999 # first 80% of the data is used for training
-    # np.random.shuffle(BuySeriesVals)
-    #Split into train and test
-    trainBegin = int(trainPercent*len(BuySeriesVals)) 
-    trains = BuySeriesVals[0:trainBegin]
-    train,val = train_test_split(trains)
-    test = BuySeriesVals[trainBegin:]
-    # np.random.shuffle(train) # shuffle the training dataset
+    x,y = shuffle(buySeries,buySeriesLabs)
+    tot = len(x)
+    y = y.values
+    trainPercent = 0.8 # majority of data used for training
+    testPercent = 0.95 # 
+    valPercent = 1.00  #
 
-    # Split into x and y
-    xTrain,yTrain = train[:,0:-1],train[:,-1] # X is the first lag elements. Y is the lag+1 element
-    xVal,yVal = val[:,0:-1],val[:,-1] # Same for Validation
-    xTest,yTest = test[:,0:-1],test[:,-1] # Same for testing data
+    # Test Train Val Split
 
-    #scale function to local normalize each row between 0 and 1 so as to amplify any changes
-    # standardize = lambda row: skp.normalize(row)
-    xTrain =skp.scale(xTrain,axis=1) #np.apply_along_axis(standardize,1,xTrain) #scale to 01
-    xTest = skp.scale(xTest,axis=1) #scale to 0 1
-    xVal = skp.scale(xVal,axis=1) #scale to 0 1
+    xTrain = x[0:int(trainPercent*tot),:,:]
+    yTrain = y[0:int(trainPercent*tot)]
 
-    #Reshape for keras
-    xTrain = xTrain.reshape(xTrain.shape[0], xTrain.shape[1],1)
-    xTest = xTest.reshape(xTest.shape[0], xTest.shape[1],1)
-    xVal = xVal.reshape(xVal.shape[0],xVal.shape[1],1)
+    xTest = x[int(trainPercent*tot): int(testPercent*tot),:,:]
+    yTest = y[int(trainPercent*tot): int(testPercent*tot)]
 
+    xVal = x[int(testPercent*tot):,:,:]
+    yVal = y[int(testPercent*tot):]
 
     # # # encode class values as integers
     # encoder = LabelEncoder()
@@ -201,14 +238,14 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
 
     nClasses = 2
     nLength = xTrain.shape[1]
-    inputShape = (nLength,1)
+    inputShape = (nLength,2)
     # xTrainDataSet = tf.data.Dataset.from_tensors(xTrain)
     # xTrainIter = xTrainDataSet.make_one_shot_iterator()
 
 
     # In[14]:
 
-
+    print("BUY TRAINING")
     # Keras
     #https://arxiv.org/pdf/1709.05206.pdf LSTM-FCN
     buyModelConv = Sequential()
@@ -224,6 +261,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     buyModelConv.add(BatchNormalization())
     buyModelConv.add(Activation('relu'))
 
+
     buyModelConv.add(Conv1D(15,kernel_size= 2, strides=1))
     buyModelConv.add(BatchNormalization())
     buyModelConv.add(Activation('relu'))
@@ -233,9 +271,12 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     buyConvInput = buyModelConv(im)
      ########################################
     buyModelLSTM = Sequential()
+
     buyModelLSTM.add(Permute((1, 2), input_shape=inputShape))
     buyModelLSTM.add(AttentionLSTM(2))
-    buyModelLSTM.add(Dropout(0.8))
+    buyModelLSTM.add(Dropout(0.5))
+
+
     im2 = buyModelLSTM.layers[0].input
     buyLstmInput = buyModelLSTM(im2)
     #############################
@@ -243,8 +284,6 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     merged = concatenate([buyConvInput, buyLstmInput])
     output = Dense(1, activation='sigmoid')(merged)
     buyModel = Model(inputs=[im,im2],outputs=output)
-
-
     # In[ ]:
 
 
@@ -261,7 +300,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
                  y=yTrain, 
                  class_weight=classWeight,
                  validation_data = ([xVal,xVal],yVal),
-                 epochs = 5,
+                 epochs = epochs,
                  verbose = 0,
                  batch_size = batchSize   
                   )
@@ -270,7 +309,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     # In[ ]:
 
 
-    score = buyModel.evaluate([xTest,xTest], yTest, verbose=0)
+    score = buyModel.evaluate([xTest,xTest], yTest, verbose=1)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
@@ -281,31 +320,41 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
 
 
     # Get values from pandas series as we need a numpy array for our classifier
-    sellSeriesVals = sellSeries.values
-    trainPercent = 0.999 # first 80% of the data is used for training
-    np.random.shuffle(sellSeriesVals)
-    #Split into train and test
-    trainBegin = int(trainPercent*len(sellSeriesVals)) 
-    trains = sellSeriesVals[0:trainBegin]
-    train,val = train_test_split(trains)
-    test = sellSeriesVals[trainBegin:]
-    # np.random.shuffle(train) # shuffle the training dataset
+    x,y = shuffle(sellSeries,sellSeriesLabs)
+    tot = len(x)
+    y = y.values
+    trainPercent = 0.8 # majority of data used for training
+    testPercent = 0.95 # 
+    valPercent = 1.00  #
 
-    # Split into x and y
-    xTrain,yTrain = train[:,0:-1],train[:,-1] # X is the first lag elements. Y is the lag+1 element
-    xVal,yVal = val[:,0:-1],val[:,-1] # Same for Validation
-    xTest,yTest = test[:,0:-1],test[:,-1] # Same for testing data
+    # Test Train Val Split
 
-    #scale function to local normalize each row between 0 and 1 so as to amplify any changes
-    # standardize = lambda row: skp.normalize(row)
-    xTrain =skp.scale(xTrain,axis=1) #np.apply_along_axis(standardize,1,xTrain) #scale to 01
-    xTest = skp.scale(xTest,axis=1) #scale to 0 1
-    xVal = skp.scale(xVal,axis=1) #scale to 0 1
+    xTrain = x[0:int(trainPercent*tot),:,:]
+    yTrain = y[0:int(trainPercent*tot)]
 
-    #Reshape for keras
-    xTrain = xTrain.reshape(xTrain.shape[0], xTrain.shape[1],1)
-    xTest = xTest.reshape(xTest.shape[0], xTest.shape[1],1)
-    xVal = xVal.reshape(xVal.shape[0],xVal.shape[1],1)
+    xTest = x[int(trainPercent*tot): int(testPercent*tot),:,:]
+    yTest = y[int(trainPercent*tot): int(testPercent*tot)]
+
+    xVal = x[int(testPercent*tot):,:,:]
+    yVal = y[int(testPercent*tot):]
+
+# #Reshape for keras
+# xTrain = xTrain.reshape(xTrain.shape[0], xTrain.shape[1],1)
+# xTest = xTest.reshape(xTest.shape[0], xTest.shape[1],1)
+# xVal = xVal.reshape(xVal.shape[0],xVal.shape[1],1)
+
+
+# # # encode class values as integers
+# encoder = LabelEncoder()
+# encoder.fit(yTrain)
+# encodedyTrain = encoder.transform(yTrain)
+# encodedyTest = encoder.transform(yTest)
+# encodedyVal = encoder.transform(yVal)
+# # convert integers to one hot encoded
+# yTrain = np_utils.to_categorical(encodedyTrain)
+# yTest = np_utils.to_categorical(encodedyTest)
+# yVal = np_utils.to_categorical(encodedyVal)
+
 
 
     # # # encode class values as integers
@@ -326,9 +375,9 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
 
 
     # Compute Class weights
+# Compute Class weights
     classWeight = class_weight.compute_class_weight('balanced', np.unique(yTrain), yTrain)
     classWeight = dict(enumerate(classWeight))
-    print(classWeight)
     xTest.shape
     assert xTrain.shape[0] == yTrain.shape[0]
     assert xTest.shape[0] == yTest.shape[0]
@@ -341,14 +390,18 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
 
     nClasses = 2
     nLength = xTrain.shape[1]
-    inputShape = (nLength,1)
+    inputShape = (nLength,2)
+# xTrainDataSet = tf.data.Dataset.from_tensors(xTrain)
+# xTrainIter = xTrainDataSet.make_one_shot_iterator()
     # xTrainDataSet = tf.data.Dataset.from_tensors(xTrain)
     # xTrainIter = xTrainDataSet.make_one_shot_iterator()
 
 
     # In[ ]:
 
-
+    print("SELL TRAINING")
+    # Keras
+    #https://arxiv.org/pdf/1709.05206.pdf LSTM-FCN
     # Keras
     #https://arxiv.org/pdf/1709.05206.pdf LSTM-FCN
     sellModelConv = Sequential()
@@ -375,8 +428,8 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
      ########################################
     sellModelLSTM = Sequential()
     sellModelLSTM.add(Permute((1, 2), input_shape=inputShape))
-    sellModelLSTM.add(AttentionLSTM(3))
-    sellModelLSTM.add(Dropout(0.8))
+    sellModelLSTM.add(AttentionLSTM(2))
+    sellModelLSTM.add(Dropout(0.5))
     im2 = sellModelLSTM.layers[0].input
     sellLstmInput = sellModelLSTM(im2)
     #############################
@@ -402,7 +455,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
                  y=yTrain, 
                  class_weight=classWeight,
                  validation_data = ([xVal,xVal],yVal),
-                 epochs = 5,
+                 epochs = epochs,
                  batch_size = batchSize,  
                  verbose = 0)
 
@@ -410,7 +463,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     # In[ ]:
 
 
-    score = sellModel.evaluate([xTest,xTest], yTest, verbose=0)
+    score = sellModel.evaluate([xTest,xTest], yTest, verbose=1)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
@@ -418,8 +471,8 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     # In[ ]:
 
 
-    buyModel.save('buyModel.h5')
-    sellModel.save('sellModel.h5')
+    # buyModel.save('buyModel.h5')
+    # sellModel.save('sellModel.h5')
 
 
     import backtrader as bt
@@ -458,28 +511,29 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
         for row in print_list:
             print(row_format.format('',*row))
 
-
     class neuralModel(bt.Indicator):
         lines = ('Ind',)
         params = (('period', 30),('neuralModel',None))
 
         def __init__(self):
             self.addminperiod(self.params.period)
-            self.i = 0
+    #         self.i = 0
 
         def next(self):
-            data = self.data.get(size=self.p.period) # get the data
-            data = np.array(data) # put it in a numpy array
-            # print(data)
-            data = skp.scale(data)
-            data = data.reshape(1, -1,1) # get it ready for the neural network
+            vols = np.array(self.data.volume.get(size=self.p.period)) # get the volumes
+            close = np.array(self.data.close.get(size=self.p.period)) # get the closing prices
+            # scale them
+            vols = skp.minmax_scale(vols)
+            close = skp.minmax_scale(close)
+            # make an array of the 2
+    #         print(self.p.period)
+            data = np.zeros((1,self.p.period,2))
+    #         print(data.shape)
+            data[0,:,0] = close
+            data[0,:,1] = vols
             prob = self.p.neuralModel.predict([data,data])[0][0]
     #         print(prob)
             self.lines.Ind[0] = prob # predict and round to 0 for no action and 1 for buy
-
-
-    # In[ ]:
-
 
     class TestStrategy(bt.Strategy):
         params = (
@@ -491,14 +545,14 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
         def __init__(self):
 
             self.dataclose = self.datas[0].close
-            
+
             self.neuralBuy = neuralModel(
                 self.datas[0], 
                 period=self.params.lagPeriod, 
                 neuralModel = self.params.buyNeural,
                 plot = False
             )
-            
+
             self.neuralSell = neuralModel(
                 self.datas[0], 
                 period=self.params.lagPeriod, 
@@ -510,31 +564,28 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
         def next(self):
 
 
-            if self.neuralBuy[0] > 0.6 and self.neuralSell[0] < 0.45:
-                # print(self.neuralBuy[0])
-                # print(self.neuralSell[0])
+            if self.neuralBuy[0] > 0.55 and self.neuralSell[0] < 0.5:
+    #             print(self.neuralBuy[0])
+    #             print(self.neuralSell[0])
 
-                buyOrd = self.buy_bracket(limitprice=self.dataclose+flat -0.05,
+                buyOrd = self.buy_bracket(limitprice=self.dataclose+0.1,
                                           price=self.dataclose,
-                                          stopprice=self.dataclose-drop,
-                                          size = 30000,
+                                          stopprice=self.dataclose-0.1,
+                                          size = 15000,
                                           valid = 0
                                          )
 
 
 
 
-            elif self.neuralSell[0] > 0.6 and self.neuralBuy[0] < 0.45:
-                # print(self.neuralBuy[0])
-                # print(self.neuralSell[0])
-                sellOrd = self.sell_bracket(limitprice=self.dataclose-flat +0.05,
+            elif self.neuralSell[0] > 0.55 and self.neuralBuy[0] < 0.5:
+    #             print(self.neuralBuy[0])
+    #             print(self.neuralSell[0])
+                sellOrd = self.sell_bracket(limitprice=self.dataclose-0.1,
                               price=self.dataclose,
-                              stopprice=self.dataclose+drop,
-                              size = 30000,
+                              stopprice=self.dataclose + 0.1,
+                              size = 15000,
                               valid = 0)
-
-
-    # In[949]:
 
 
     class Plotter(bt.plot.Plot):

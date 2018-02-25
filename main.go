@@ -64,8 +64,8 @@ func main() {
 	}
 	// fmt.Printf("%q is at row %v\n", "two", )
 
-	FROM := "2018-02-17" //currentDate.Format("2006-01-02") // Start of history
-	TO := "2018-02-23"   //currentDate.Add(time.Hour * 24).Format("2006-01-02") //currentDate.Format("2006-01-02")   // End of history
+	FROM := "2014-02-17" //currentDate.Format("2006-01-02") // Start of history
+	TO := "2018-03-24"   //currentDate.Add(time.Hour * 24).Format("2006-01-02") //currentDate.Format("2006-01-02")   // End of history
 
 	scripFile, err := os.Open("tradeList.txt") //instruments being considered
 	if err != nil {

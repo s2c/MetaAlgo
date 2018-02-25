@@ -16,7 +16,7 @@ from pythonLib.helper import *
 vals = json.load(open('config.json')) # read the config
 kite = KiteConnect(api_key=vals['API_KEY']) #
 
-print("Here")              
+# print("Here")              
 try:
     user = kite.generate_session(vals['REQ_TOKEN'], api_secret=vals['API_SECRET'])
 except Exception as e:
@@ -40,7 +40,7 @@ with open (curInstList) as f: #populate list of all current stocks
         i+=1
         if i > 2: # first 3 stocks for now
             break
-print("Here")
+# print("Here")
 buyModels = [] # list of buy models
 sellModels = [] # list of sell Models
 instTokens = [] # All the instrument tokens
@@ -62,7 +62,7 @@ for i,curStock in enumerate(stockList):
     historiesPrices.append(np.zeros(currLag))
     historiesVols.append(np.zeros(currLag))
 print(instTokens)
-print(user["user_id"], "has logged in") # connected to API
+print("Initial Setup Complete") # connected to API
 
 
 
@@ -125,19 +125,21 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
     sqVal = spreads[0]
     stpVal = spreads[1]
     quant = spreads[2]
-    print(quant)
+    # print(quant)
     bHigh = spreads[3]
     bLow = spreads[4]
     sHigh = spreads[5]
     sLow = spreads[6]
-    quote = kite.quote(exchange="NSE",tradingsymbol= curStock)
-    curClose = quote['last_price']
+    quote = kite.quote("NSE:%s" % curStock)
+    # print(quote)
+    curClose = quote["NSE:%s" % curStock]['last_price']
     if np.absolute(curClose - history[-1]['close']) > 0.1 :
         print("Price differential to great between data and current, skipping analysis")
+        sleep(1)
         return
     else:
         print("BuyProb = %.2f Sellprob = %.2f" % (buyProb,sellProb))
-        if buyProb > bHigh and sellProb < bLow: # if buy probability is greater than 0.6
+        if buyProb > bHigh and sellProb < bLow: # if buy probability is greater than 0.6 Complete
             print("Buyprob greater than %.2f at %.2f and SellProb less than %.2f at %.2f" % (bHigh,buyProb,bLow,sellProb))
             print("Buying")
             orderId =  buyOrd(kiteCli,curStock,curClose,sqVal,stpVal,quant) # place a buy order
@@ -148,7 +150,7 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
             orderId =  sellOrd(kiteCli,curStock,curClose,sqVal,stpVal,quant) # place a sell order
         else:
             print("No probabilities greater than thresholds, skipping")
-        sleep(1)
+    sleep(1)
     return
 
 
@@ -157,7 +159,7 @@ while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 15: # Last orde
     spreadList = pd.read_csv(spreadsFile,header=None).values # Maybe not needed every minute, we'll see
     t = dt.datetime.now(pytz.timezone('Asia/Kolkata'))
     sleeptime = 60 - (t.second)
-    sleep(sleeptime + 1)
+    sleep(sleeptime + 10)
     for i,curStock in enumerate(stockList):
         print(curStock)
         h = placeOrder(kite,instTokens[i],
