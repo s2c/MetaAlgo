@@ -38,9 +38,9 @@ with open (curInstList) as f: #populate list of all current stocks
         curTicker = each_csv # store ticker
         stockList.append(curTicker)
         i+=1
-        if i > 2: # first 3 stocks for now
-            break
-# print("Here")
+        # if i > 2: # first 3 stocks for now
+        #     break
+print(stockList)
 buyModels = [] # list of buy models
 sellModels = [] # list of sell Models
 instTokens = [] # All the instrument tokens
@@ -78,7 +78,8 @@ def buyOrd(kiteCli,tSymbol,price,sqVal,stpVal,quant):
                                     stoploss =  stpVal,
                                     variety = kite.VARIETY_BO,
                                     validity = kite.VALIDITY_DAY,
-                                    disclosed_quantity = int(quant/10))
+                                    # disclosed_quantity = int(quant/10)
+                                    )
     return order
 
 def sellOrd(kiteCli,tSymbol,price,sqVal,stpVal,quant):
@@ -93,7 +94,8 @@ def sellOrd(kiteCli,tSymbol,price,sqVal,stpVal,quant):
                                     variety = kite.VARIETY_BO,
                                     price = float(price),
                                     validity = kite.VALIDITY_DAY,
-                                    disclosed_quantity = int(quant/10))
+                                    # disclosed_quantity = int(quant/10)
+                                    )
     return order
 
 def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
@@ -114,14 +116,6 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
     print(dt.datetime.now(pytz.timezone('Asia/Kolkata')))
     print(historiesPrices)
     print(historiesVols)
-    close = skp.minmax_scale(historiesPrices)
-    vols = skp.minmax_scale(historiesVols)
-    data = np.zeros((1,lag,2))
-    data[0,:,0] = close
-    data[0,:,1] = vols
-    buyProb = bMod.predict([data,data])[0][0] 
-    sellProb = sMod.predict([data,data])[0][0]
-    # print(spreads)
     sqVal = spreads[0]
     stpVal = spreads[1]
     quant = spreads[2]
@@ -130,6 +124,29 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
     bLow = spreads[4]
     sHigh = spreads[5]
     sLow = spreads[6]
+    cont = spreads[7]
+    maxHeld = spreads[8]
+    held = np.absolute(kiteCli.positions()['data']['net'][curStock]['quantity']) # get already held positions
+
+    if held + quant > maxHeld: # if the new position would go over the max position
+        quant = maxHeld - held # check how much more we can add
+        if quant <= 0: # if we can add only a negative or 0 amount then we can't really add so skip this iteration
+            print("MAX ALREADY HELD")
+            sleep(1)
+            return
+    if cont == 0:
+    	print("Manually Skipping")
+    	sleep(1)
+    	return
+    close = skp.minmax_scale(historiesPrices)
+    vols = skp.minmax_scale(historiesVols)
+    data = np.zeros((1,lag,2))
+    data[0,:,0] = close
+    data[0,:,1] = vols
+    buyProb = bMod.predict([data,data])[0][0] 
+    sellProb = sMod.predict([data,data])[0][0]
+    # print(spreads)
+
     quote = kite.quote("NSE:%s" % curStock)
     # print(quote)
     curClose = quote["NSE:%s" % curStock]['last_price']
@@ -137,16 +154,17 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
         print("Price differential to great between data and current, skipping analysis")
         sleep(1)
         return
+
     else:
         print("BuyProb = %.2f Sellprob = %.2f" % (buyProb,sellProb))
         if buyProb > bHigh and sellProb < bLow: # if buy probability is greater than 0.6 Complete
             print("Buyprob greater than %.2f at %.2f and SellProb less than %.2f at %.2f" % (bHigh,buyProb,bLow,sellProb))
-            print("Buying")
+            print("BUYING")
             orderId =  buyOrd(kiteCli,curStock,curClose,sqVal,stpVal,quant) # place a buy order
 
         elif sellProb > sHigh and buyProb < sLow:
             print("SellProb greater than %.2f at %.2f and Buyprob less than %.2f at %.2f" % (sHigh,sellProb,sLow,buyProb))
-            print("Selling  ")
+            print("SELLING")
             orderId =  sellOrd(kiteCli,curStock,curClose,sqVal,stpVal,quant) # place a sell order
         else:
             print("No probabilities greater than thresholds, skipping")
@@ -164,6 +182,7 @@ while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 15: # Last orde
         print(curStock)
         h = placeOrder(kite,instTokens[i],
                    buyModels[i],sellModels[i],curStock,lags[i],spreadList[i])
+    print ("_________________________________________________________________")
 
 
 print("TRADING DAY IS OVER!")

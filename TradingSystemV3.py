@@ -57,7 +57,7 @@ with open (curInstList) as f:
         each_csv = each_csv.rstrip('\n') # read csv
         curTicker = each_csv # store ticker
         stockList.append(curTicker)
-cur = 0
+cur = 3
 stockList
 utc = pytz.UTC
 starDate = utc.localize(dt.datetime(2014,3,8))
@@ -70,7 +70,7 @@ curIter = 0
 drop = 0.1
 
 while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (startDate.year == 2015) or (endDate.year == 2018 and endDate.month == 1 and endDate.day <= 6) :
-    query = "SELECT * FROM histdata WHERE ticker = 'GMRINFRA' ORDER BY datetime ASC"
+    query = "SELECT * FROM histdata WHERE ticker = '%s' ORDER BY datetime ASC" % stockList[cur]
     dat = pd.read_sql(query,engine)
 
 
@@ -232,9 +232,9 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
 
 
     learnRate = 0.05
-    batchSize = 300
+    batchSize = 3000
     totalBatches = (xTrain.shape[0]//batchSize)
-    epochs = 5
+    epochs = 1
 
     nClasses = 2
     nLength = xTrain.shape[1]
@@ -384,9 +384,9 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     assert xVal.shape[0] == yVal.shape[0]
     yTrain
     learnRate = 0.05
-    batchSize = 300
+    batchSize = 3000
     totalBatches = (xTrain.shape[0]//batchSize)
-    epochs = 5
+    epochs = 1
 
     nClasses = 2
     nLength = xTrain.shape[1]
@@ -610,7 +610,7 @@ while curIter==0 or (startDate.year == 2016) or (startDate.year == 2014) or (sta
     # In[950]:
 
 
-    fed = bt.feeds.GenericCSVData(dataname='data/GMRINFRA.csv',
+    fed = bt.feeds.GenericCSVData(dataname='data/%s.csv' % stockList[cur],
                                   dtformat="%Y-%m-%dT%H:%M:%S%z",
                                   openinterest=-1,
                                   headers=False,
