@@ -47,7 +47,7 @@ instTokens = [] # All the instrument tokens
 lags = []   #all the lags
 historiesPrices = [] # shape = (stock,cost,vols)
 historiesVols = []
-
+# print(kite.positions())
 #Load some of the bsaics
 for i,curStock in enumerate(stockList):
     # print(curStock)
@@ -126,15 +126,27 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
     sLow = spreads[6]
     cont = spreads[7]
     maxHeld = spreads[8]
-    held = np.absolute(kiteCli.positions()['data']['net'][curStock]['quantity']) # get already held positions
+    try:
+        positions = kiteCli.positions()['net'] # get already held positions
+        for position in positions:
+            if position['tradingsymbol'] == curStock:
+                held = np.absolute(position['quantity'])
+                print("We already hold %d of %s " %(held, curStock))
+                if held + quant > maxHeld: # if the new position would go over the max position
+                    quant = maxHeld - held # check how much more we can add
+                    if quant <= 0: # if we can add only a negative or 0 amount then we can't really add so skip this iteration
+                        print("MAX ALREADY HELD")
+                        sleep(1)
+                        return
+    except Exception as e:
+        print(e)
+        if curStock not in kiteCli.positions()['net']:
+            pass
+        else:
+            raise
 
-    if held + quant > maxHeld: # if the new position would go over the max position
-        quant = maxHeld - held # check how much more we can add
-        if quant <= 0: # if we can add only a negative or 0 amount then we can't really add so skip this iteration
-            print("MAX ALREADY HELD")
-            sleep(1)
-            return
-    if cont == 0:
+        
+    if cont == 0: # manual switch if we want to turn this particular scrip off
     	print("Manually Skipping")
     	sleep(1)
     	return

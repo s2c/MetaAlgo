@@ -24,13 +24,15 @@ def findInstToken(stockName, instFile):
 
 def readData(filename):
     convertfunc = lambda x: (pd.to_datetime(x,utc=True)).tz_convert('Asia/Kolkata')
-    return pd.read_csv(filename,
+    dataInit = pd.read_csv(filename,
                     names=["datetime","open","high","low","close","volume"],
                     dtype=None,
                     delimiter = ',',
                     converters = {0:convertfunc},
                   #  index_col = 0
                    )
+    # dataInit = dataInit.dropna(axis=0,how='any')
+    return dataInit
 
 # Making sure that 2 timeseries are synced to the smaller time series
 # Goes through 2 timeseries and eliminates data which are not present on the same date on both the timeseries
@@ -75,10 +77,11 @@ def timeseriesLagged(data, lag=60):
 # Binarizes the last column into 1, 0, -1. 1 = buy 0 = do nothing -1 = sell
 # Rate is the percent increase or decrease that should trigger a buy or a sell
 # lag is the time unit of lag. 
-# Input: lagged pandas DataFrame, uint lag, double dif, double flat
+# atleast is how many of the lookahead need to be atleast the same or great erthan flat+rat
+# Input: lagged pandas DataFrame, uint lag, double dif, double flat, double atleast between 0 and 1
 # Output : Pandas Dataframe with last column binarized
 
-def binarizeTime(resLagged,rate = 0,lookahead = 0, flat = 0):
+def binarizeTime(resLagged,rate = 0,lookahead = 0, flat = 0,atleast = 0.5):
     if lookahead <= 0 :
         raise Exception("lookahead Must be 1 or higher!")
     resLagged = resLagged.copy() # Make a deep copy
@@ -87,8 +90,16 @@ def binarizeTime(resLagged,rate = 0,lookahead = 0, flat = 0):
     colsLookAhead = list(resLagged.loc[:,str(last+1):str(last + lookahead)])
     colsLast = resLagged[str(last)]
     diffs = resLagged[colsLookAhead].subtract(colsLast,axis=0)
-    changeToBuy = np.any(diffs >= flat,axis=1)
-    changeToSell = np.any(diffs <= -flat,axis=1)
+#     print(diffs)
+    greater = diffs>=flat  # all the times the price changed higer than flat
+    greater = np.count_nonzero(greater,axis=1).reshape((1,-1))
+    lesser = diffs<=-flat # all the times the price fell lower than fat
+    lesser = np.count_nonzero(lesser,axis=1).reshape((1,-1))
+#     return greater,lesser
+#     print(greater)
+    greater = greater.reshape(1,-1)
+    changeToBuy = np.any(greater > lesser & np.greater(greater,atleast*lookahead),axis=0) # make sure more rises than falls and atleast half rises
+    changeToSell = np.any(lesser > greater & np.greater(lesser,atleast*lookahead),axis=0)      # make sure more falls than rises and atleast half rises
     changeToHold = ~changeToBuy & ~changeToSell
     resLagged = resLagged.drop(colsLookAhead,1)
     resLagged.loc[changeToSell,str(last+1)] = -1 # Set sell to -1
