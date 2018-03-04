@@ -64,7 +64,7 @@ func main() {
 	}
 	// fmt.Printf("%q is at row %v\n", "two", )
 
-	FROM := "2014-02-17" //currentDate.Format("2006-01-02") // Start of history
+	FROM := "2009-02-17" //currentDate.Format("2006-01-02") // Start of history
 	TO := "2018-02-24"   //currentDate.Add(time.Hour * 24).Format("2006-01-02") //currentDate.Format("2006-01-02")   // End of history
 
 	scripFile, err := os.Open("tradeList.txt") //instruments being considered
@@ -75,10 +75,10 @@ func main() {
 
 	for scripList.Scan() { // looped through
 		fmt.Println("HERE")
-		fname := string(scripList.Text())                                                // name of scrip
-		exchangeToken := find(records, scripList.Text(), 2)                              // find the exchange token
-		fmt.Printf("ADDED %s to QUEUE \n", (fname))                                      // print out info
-		go client.GetHistorical(MINUTE, exchangeToken, FROM, TO, fname+".csv", HistPool) // get data
+		fname := string(scripList.Text())                                             // name of scrip
+		exchangeToken := find(records, scripList.Text(), 2)                           // find the exchange token
+		fmt.Printf("ADDED %s to QUEUE \n", (fname))                                   // print out info
+		go client.GetHistorical(DAY, exchangeToken, FROM, TO, fname+".csv", HistPool) // get data
 
 	}
 	fmt.Println("Waiting")

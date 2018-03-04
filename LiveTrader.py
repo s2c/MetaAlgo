@@ -110,11 +110,14 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
                                       str(dt.datetime.now().date() - dt.timedelta(days=1)),
                                       str(dt.datetime.now().date() + dt.timedelta(days=1)), "minute", continuous=False)
 
-    curr = history[-45:]
-    historiesPrices = np.array([x['close'] for x in curr])
+    curr = history[-lag:]
+    historiesClose = np.array([x['close'] for x in curr])
     historiesVols = np.array([x['volume'] for x in curr] )
+    historiesOpen = np.array([x['open'] for x in curr] )
+    historiesHigh = np.array([x['high'] for x in curr] )
+    historiesLow = np.array([x['low'] for x in curr] )
     print(dt.datetime.now(pytz.timezone('Asia/Kolkata')))
-    print(historiesPrices)
+    print(historiesClose)
     print(historiesVols)
     sqVal = spreads[0]
     stpVal = spreads[1]
@@ -150,13 +153,16 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
     	print("Manually Skipping")
     	sleep(1)
     	return
-    close = skp.minmax_scale(historiesPrices)
+    close = skp.minmax_scale(historiesClose)
     vols = skp.minmax_scale(historiesVols)
-    data = np.zeros((1,lag,2))
-    data[0,:,0] = close
-    data[0,:,1] = vols
-    buyProb = bMod.predict([data,data])[0][0] 
-    sellProb = sMod.predict([data,data])[0][0]
+    open = skp.minmax_scale(historiesOpen)
+    high = skp.minmax_scale(historiesHigh)
+    low = skp.minmax_scale(historiesLow)
+    # data = np.zeros((1,lag,5))
+    # data[0,:,0] = close
+    # data[0,:,1] = vols
+    buyProb = bMod.predict([close,open,high,low,vols])[0][0] 
+    sellProb = sMod.predict([close,open,high,low,vols])[0][0]
     # print(spreads)
 
     quote = kite.quote("NSE:%s" % curStock)
