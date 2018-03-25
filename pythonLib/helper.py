@@ -77,7 +77,7 @@ def timeseriesLagged(data, lag=60):
 # Binarizes the last column into 1, 0, -1. 1 = buy 0 = do nothing -1 = sell
 # Rate is the percent increase or decrease that should trigger a buy or a sell
 # lag is the time unit of lag. 
-# atleast is how many of the lookahead need to be atleast the same or great erthan flat+rat
+# atleast is how many of the lookahead need to be atleast the same or greater than flat+rat
 # Input: lagged pandas DataFrame, uint lag, double dif, double flat, double atleast between 0 and 1
 # Output : Pandas Dataframe with last column binarized
 

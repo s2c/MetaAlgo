@@ -38,7 +38,7 @@ with open (curInstList) as f: #populate list of all current stocks
         curTicker = each_csv # store ticker
         stockList.append(curTicker)
         i+=1
-        # if i > 2: # first 3 stocks for now
+        # if i > 0: # first  stock for now
         #     break
 print(stockList)
 buyModels = [] # list of buy models
@@ -63,7 +63,7 @@ for i,curStock in enumerate(stockList):
     historiesVols.append(np.zeros(currLag))
 print(instTokens)
 print("Initial Setup Complete") # connected to API
-
+print(lags)
 
 
 def buyOrd(kiteCli,tSymbol,price,sqVal,stpVal,quant):
@@ -107,9 +107,10 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
     spreads = list of [sqVal,stpVal,quant]
     """
     history = kiteCli.historical_data(instToken, 
-                                      str(dt.datetime.now().date() - dt.timedelta(days=1)),
+                                      str(dt.datetime.now().date()),
                                       str(dt.datetime.now().date() + dt.timedelta(days=1)), "minute", continuous=False)
 
+    # print(history)
     curr = history[-lag:]
     historiesClose = np.array([x['close'] for x in curr])
     historiesVols = np.array([x['volume'] for x in curr] )
@@ -129,6 +130,33 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
     sLow = spreads[6]
     cont = spreads[7]
     maxHeld = spreads[8]
+
+    close = skp.minmax_scale(historiesClose)
+    vols = skp.minmax_scale(historiesVols)
+    open = skp.minmax_scale(historiesOpen)
+    high = skp.minmax_scale(historiesHigh)
+    low = skp.minmax_scale(historiesLow)
+    data = np.zeros((1,lag,5))
+    data[0,:,0] = close
+    data[0,:,1] = open
+    data[0,:,2] = high
+    data[0,:,3] = low
+    data[0,:,4] = vols
+    x1 = data[:,:,0].reshape(-1,lag,1)
+    # x2 = data[:,:,1].reshape(-1,lag,1)
+    # x3 = data[:,:,2].reshape(-1,lag,1)
+    # x4 = data[:,:,3].reshape(-1,lag,1)
+    x5 = data[:,:,4].reshape(-1,lag,1)
+    buyProb = bMod.predict([x1,x5])[0][0] 
+    sellProb = sMod.predict([x1,x5])[0][0]
+    print("BuyProb = %.2f Sellprob = %.2f" % (buyProb,sellProb))
+
+
+    if cont == 0: # manual switch if we want to turn this particular scrip off
+    	print("Manually Skipping")
+    	sleep(1)
+    	return
+    # print(spreads)
     try:
         positions = kiteCli.positions()['net'] # get already held positions
         for position in positions:
@@ -147,34 +175,15 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
             pass
         else:
             raise
-
-        
-    if cont == 0: # manual switch if we want to turn this particular scrip off
-    	print("Manually Skipping")
-    	sleep(1)
-    	return
-    close = skp.minmax_scale(historiesClose)
-    vols = skp.minmax_scale(historiesVols)
-    open = skp.minmax_scale(historiesOpen)
-    high = skp.minmax_scale(historiesHigh)
-    low = skp.minmax_scale(historiesLow)
-    # data = np.zeros((1,lag,5))
-    # data[0,:,0] = close
-    # data[0,:,1] = vols
-    buyProb = bMod.predict([close,open,high,low,vols])[0][0] 
-    sellProb = sMod.predict([close,open,high,low,vols])[0][0]
-    # print(spreads)
-
     quote = kite.quote("NSE:%s" % curStock)
     # print(quote)
     curClose = quote["NSE:%s" % curStock]['last_price']
-    if np.absolute(curClose - history[-1]['close']) > 0.1 :
-        print("Price differential to great between data and current, skipping analysis")
+    if np.absolute(curClose - history[-1]['close']) > 0.3:
+        print("Price differential too great between data and current, skipping analysis")
         sleep(1)
-        return
 
     else:
-        print("BuyProb = %.2f Sellprob = %.2f" % (buyProb,sellProb))
+
         if buyProb > bHigh and sellProb < bLow: # if buy probability is greater than 0.6 Complete
             print("Buyprob greater than %.2f at %.2f and SellProb less than %.2f at %.2f" % (bHigh,buyProb,bLow,sellProb))
             print("BUYING")
@@ -191,11 +200,12 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
 
 
 
-while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 15: # Last order goes in at 2 PM
-    spreadList = pd.read_csv(spreadsFile,header=None).values # Maybe not needed every minute, we'll see
+while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 14: # Last order goes in at 2 PM
     t = dt.datetime.now(pytz.timezone('Asia/Kolkata'))
-    sleeptime = 60 - (t.second)
-    sleep(sleeptime + 10)
+    sleeptime = 60 - (t.second)	
+    print(stockList)
+    sleep(sleeptime)
+    spreadList = pd.read_csv(spreadsFile,header=None).values # Maybe not needed every minute, we'll see
     for i,curStock in enumerate(stockList):
         print(curStock)
         h = placeOrder(kite,instTokens[i],

@@ -18,11 +18,10 @@ kite-go
 
 
 # Text Files
-*.txt
 *.csv
 clean.sh
 models/*
-plots/*
-*.h5
 *.pkl
+ACCTOKEN.txt
+plots/*
 
