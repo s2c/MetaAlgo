@@ -147,8 +147,8 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
     # x3 = data[:,:,2].reshape(-1,lag,1)
     # x4 = data[:,:,3].reshape(-1,lag,1)
     x5 = data[:,:,4].reshape(-1,lag,1)
-    buyProb = bMod.predict([x1,x5])[0][0] 
-    sellProb = sMod.predict([x1,x5])[0][0]
+    buyProb = bMod.predict([x1,x1,x5,x5])[0][0] 
+    sellProb = sMod.predict([x1,x1,x5,x5])[0][0]
     print("BuyProb = %.2f Sellprob = %.2f" % (buyProb,sellProb))
 
 
@@ -184,12 +184,12 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
 
     else:
 
-        if buyProb > bHigh and sellProb < bLow: # if buy probability is greater than 0.6 Complete
+        if buyProb >= bHigh and sellProb < bLow: # if buy probability is greater than 0.6 Complete
             print("Buyprob greater than %.2f at %.2f and SellProb less than %.2f at %.2f" % (bHigh,buyProb,bLow,sellProb))
             print("BUYING")
             orderId =  buyOrd(kiteCli,curStock,curClose,sqVal,stpVal,quant) # place a buy order
 
-        elif sellProb > sHigh and buyProb < sLow:
+        elif sellProb >= sHigh and buyProb < sLow:
             print("SellProb greater than %.2f at %.2f and Buyprob less than %.2f at %.2f" % (sHigh,sellProb,sLow,buyProb))
             print("SELLING")
             orderId =  sellOrd(kiteCli,curStock,curClose,sqVal,stpVal,quant) # place a sell order
@@ -200,7 +200,7 @@ def placeOrder(kiteCli,instToken,bMod,sMod,curStock,lag,spreads):
 
 
 
-while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 14: # Last order goes in at 2 PM
+while int(dt.datetime.now(pytz.timezone('Asia/Kolkata')).hour) < 15: # Last order goes in at 2 PM
     t = dt.datetime.now(pytz.timezone('Asia/Kolkata'))
     sleeptime = 60 - (t.second)	
     print(stockList)
