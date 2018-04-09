@@ -1,7 +1,7 @@
 
 # DEPRECIATED 9th April, 2018
 
-This is depreciated and only up here for references. It should give about 30% precision and 80ish % accuracy on most scrips, so take that sa you will. No guarantees implicitly or explicitly given.
+This is depreciated and only up here for reference. It should give about 30% precision and 80ish % accuracy on most scrips, so take that as you will. No guarantees implicitly or explicitly given.
 All passwords used in the config files have been changed, all API keys are no longer valid.
 You can contact me at varun@alchemy.email for questions.
 
